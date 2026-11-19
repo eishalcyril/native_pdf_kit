@@ -1,0 +1,16 @@
+.dart_tool/
+build/
+test/
+pubspec.lock
+example/.dart_tool/
+example/build/
+example/ios/Pods/
+example/ios/.symlinks/
+example/macos/Pods/
+example/macos/.symlinks/
+example/**/Podfile.lock
+example/android/.gradle/
+example/android/local.properties
+example/android/app/build/
+example/ios/Flutter/ephemeral/
+example/macos/Flutter/ephemeral/

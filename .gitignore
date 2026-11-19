@@ -1,0 +1,25 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Example platform output
+example/pubspec.lock
+example/ios/Pods/
+example/ios/.symlinks/
+example/ios/Podfile.lock
+example/macos/Pods/
+example/macos/.symlinks/
+example/macos/Podfile.lock
+**/Flutter/ephemeral/
+**/xcuserdata/
+**/.gradle/
+**/local.properties
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store

@@ -1,0 +1,24 @@
+// Android module declaration. The package has no Android-specific native code:
+// it calls the platform's PdfRenderer/Bitmap classes through JNIgen, and the
+// JNI runtime comes from package:jni. This module exists so Flutter and pub.dev
+// know the package supports Android.
+group = 'com.eishal.native_pdf_kit'
+version = '1.0'
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace = 'com.eishal.native_pdf_kit'
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 21
+    }
+}
