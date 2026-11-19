@@ -17,6 +17,75 @@ permissive MIT license owned by Eishal Cyril.
 - SSH: repository-local `core.sshCommand` uses `~/.ssh/id_ed25519_personal`.
 - Never commit or push this project to the office Bitbucket repository.
 
+## Resume here — session handoff (2026-11-20)
+
+### Where we stopped
+
+- Package version: **0.2.0**. Committed and pushed to `main`; this note is
+  part of that history.
+- **Not published to pub.dev** — no credentials on the development machine.
+  `dart pub publish --dry-run` reports **0 warnings** (~245 KB archive).
+- Tests: **12/12 pass**. Run `./tool/build_native_test_lib.sh` before
+  `flutter test` (the Dart VM test process does not link the plugin).
+- Verified builds:
+  - iOS simulator (app + example),
+  - iOS device release (`flutter build ios --release --no-codesign`),
+  - Android debug and release APK,
+  - fresh clone of this repo: pub get, tests, analyze, example iOS build.
+- Supported targets: **iOS 13+**, macOS 10.15+, **Android API 21+**.
+- Office app state (`/Users/cufa/workspace/hims-f-b-mobileapp`):
+  - `packages/native_pdf_kit/` has been **removed** from the app.
+  - App `pubspec.yaml` uses a git dependency on this repo (`ref: main`).
+  - App builds and launches on the iPhone 18 Pro simulator.
+  - App changes are **uncommitted**; do not push them to Bitbucket as part of
+    this package work.
+  - Files touched in the app: `pubspec.yaml`, `pubspec.lock`,
+    `lib/hims_inventory/grn_ai/screens/elements/document_upload.dart`.
+  - The app's PDF compression path: `_optimizePdfInBackground` →
+    `NativePdfOptimizer.optimize` via `compute`; `_compressPdf({lossless})`.
+
+### Immediate next actions, in order
+
+1. **Publish 0.2.0** (`dart pub login`, dry run, `dart pub publish`), then
+   switch the office app from the git dependency to `native_pdf_kit: ^0.2.0`
+   so CI does not depend on a personal git repository.
+2. **Optimizer coverage (highest value):**
+   xref streams, hybrid files and object streams (`/ObjStm`); then Flate
+   images with predictors, JPX/CCITT/JBIG2, CMYK and soft masks.
+   Until then, modern PDFs are returned unchanged by the optimizer.
+3. **OCR decision:** Apple Vision is the Apple path. Android needs Google
+   ML Kit (third-party SDK/licence) or a self-hosted model; the app does not
+   use OCR, so this is a product/licensing decision, not a blocker.
+4. **Signing/encryption:** do not hand-roll. Requires AES-256 per ISO 32000,
+   PKCS#7/CMS, X.509, timestamping and a security audit.
+5. **Editing:** annotations, form fields, richer content edits, thumbnail
+   cache.
+6. **Quality:** older-device matrix, large-file benchmarks, parser/writer
+   fuzzing, Android optimizer runtime on a physical device (the current
+   Android verification is emulator + build).
+
+### Known limitations to keep visible
+
+- Optimizer: classic xref tables only; encrypted/hybrid/object-stream PDFs
+  are returned unchanged (safe, not optimized).
+- Image downsampling: `DCTDecode`, RGB/gray, no masks; everything else is kept.
+- Text extraction: `Tj`/`TJ` best effort; font CMaps and custom encodings are
+  ignored.
+- Merge: appends pages and renumbers objects; source outlines are not carried.
+- Page edits: flatten the page tree; target outlines are dropped.
+- `tool/jnigen.dart` needs `flutter pub get` **inside this package** and
+  `ANDROID_HOME`/`ANDROID_SDK_ROOT`. The app's analyzer no longer includes it.
+- SPM manifest requires `FlutterFramework`; CocoaPods and SPM builds are both
+  tested.
+
+### Handoff hygiene
+
+- Personal identity/key only; never use the office Bitbucket credentials here.
+- Generated files (`lib/src/android.g.dart`, example `GeneratedPlugin*`) are
+  not hand-edited.
+- Licensed MIT © Eishal Cyril; no third-party source in this package.
+  `package:ffi` and `package:jni` are dependencies, not bundled code.
+
 ## Architecture
 
 ```
