@@ -31,8 +31,8 @@ permissive MIT license owned by Eishal Cyril.
     the temporary override (~35 KB).
 - Tests:
   - core: **16/16** (`flutter test`, after `./tool/build_native_test_lib.sh`),
-  - OCR macOS: **7/7** (PDFKit text layer, Vision OCR, OCR-only, text-only,
-    capabilities, cancellation),
+  - OCR macOS: **7/7** (PDFKit text layer, Vision OCR, OCR-only, text-only, blank
+    pages, capabilities, cancellation),
   - Android device: **3/3** on the Pixel 8 Pro API 36 emulator (ML Kit document,
     ML Kit image, LiteRT PP-OCRv5 image).
 - Verified builds:
