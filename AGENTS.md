@@ -23,10 +23,12 @@ permissive MIT license owned by Eishal Cyril.
 
 ### Where we stopped
 
-- Core version: **0.3.0**. OCR companion: **0.1.0**.
+- Core version: **0.3.1**. OCR companion: **0.1.1**.
 - **Published on pub.dev on 2026-11-20**:
-  - <https://pub.dev/packages/native_pdf_kit> (0.3.0, 0 warnings, 314 KB),
-  - <https://pub.dev/packages/native_pdf_kit_ocr> (0.1.0, 0 warnings, 35 KB).
+  - <https://pub.dev/packages/native_pdf_kit> (0.3.1, 0 warnings, ~1 MB
+    with README screenshots),
+  - <https://pub.dev/packages/native_pdf_kit_ocr> (0.1.1, 0 warnings, 35 KB).
+  - Earlier same-day releases: core 0.3.0, OCR 0.1.0.
   - `dart pub login` is configured as `eishalcyril2@gmail.com` (Eishal Cyril).
   - A clean temp project resolves both hosted versions; the OCR package
     resolves `native_pdf_kit ^0.3.0` transitively.
@@ -99,6 +101,11 @@ permissive MIT license owned by Eishal Cyril.
   `tool/publish.sh`, which stages a clean copy in a temp directory.
 - SPM manifests require `FlutterFramework`; CocoaPods and SPM builds are both
   tested (macOS build used SPM).
+- The example disables release lint (`checkReleaseBuilds = false`) because AGP
+  9's lint crashes on `file_selector_android` JavaDoc parsing. The published
+  packages do not set this.
+- README screenshots are generated with `flutter drive`; raw driver output is
+  gitignored, resized copies live in `doc/screenshots/`.
 
 ### Handoff hygiene
 
@@ -228,6 +235,10 @@ flutter build macos --debug
 
 # Device OCR tests (models optional; skip if absent)
 flutter test integration_test/ocr_test.dart -d emulator-5554
+
+# Capture README screenshots (writes example/screenshots/, then copy to doc/)
+flutter drive --driver=test_driver/integration_test.dart \
+  --target=integration_test/screenshot_test.dart -d <device-id>
 
 # Publish
 dart pub publish --dry-run
