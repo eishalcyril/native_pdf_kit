@@ -46,8 +46,10 @@ permissive MIT license owned by Eishal Cyril.
   (LiteRT requires API 24 and is app opt-in).
 - Office app state (`/Users/cufa/workspace/hims-f-b-mobileapp`):
   - `packages/native_pdf_kit/` has been **removed** from the app.
-  - App `pubspec.yaml` uses a git dependency on this repo (`ref: main`).
-  - App builds and launches on the iPhone 18 Pro simulator.
+  - App `pubspec.yaml` now uses **`native_pdf_kit: ^0.3.0` from pub.dev**
+    (switched from the git dependency on 2026-11-20).
+  - `flutter pub get` resolves the hosted 0.3.0 and the iOS simulator debug
+    build passes.
   - App changes are **uncommitted**; do not push them to Bitbucket as part of
     this package work.
   - Files touched: `pubspec.yaml`, `pubspec.lock`,
@@ -57,9 +59,9 @@ permissive MIT license owned by Eishal Cyril.
 
 ### Immediate next actions, in order
 
-1. **Switch the office app** from the git dependency to
-   `native_pdf_kit: ^0.3.0` (and add `native_pdf_kit_ocr: ^0.1.0` if OCR is
-   wanted), then re-run `flutter pub get` and build.
+1. ~~Switch the office app to the hosted core~~ — done; it uses
+   `native_pdf_kit: ^0.3.0` and builds. Add `native_pdf_kit_ocr: ^0.1.0` only
+   if OCR is wanted.
 2. **Office app OCR integration**, if product wants it: add
    `native_pdf_kit_ocr: ^0.1.0` and use `NativePdfOcr.recognizeDocument` for
    scanned GRNs. Decide whether the bundled ML Kit model is acceptable;
