@@ -1,3 +1,19 @@
+## 0.3.0
+
+- Optimizer: PDF 1.5 xref streams, hybrid files, `/ObjStm` object streams,
+  incremental-update `/Prev` chains and PNG/TIFF predictors.
+- Optimizer: converts 8-bit DeviceRGB/DeviceGray Flate images to JPEG, in
+  addition to `DCTDecode` downsampling.
+- `PdfTextExtractor.extractPages` returns per-page text in one parse; Flate
+  predictors are supported.
+- New companion package `native_pdf_kit_ocr` 0.1.0:
+  Apple Vision + PDFKit, Android ML Kit Text Recognition v2, optional LiteRT +
+  PP-OCRv5, realtime progress, cancellation, line boxes.
+- Example app: live OCR demo and Android/iOS device integration tests.
+- Android release build verified with ML Kit and LiteRT 2.3.0; iOS simulator
+  and device builds verified with Vision/PDFKit.
+- Tests: 16 core tests plus 6 macOS OCR tests and 3 Android device tests.
+
 ## 0.2.0
 
 - In-house PDF optimizer: classic xref parsing, object garbage collection,

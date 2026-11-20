@@ -1,0 +1,4 @@
+# Local development only; `dart pub publish` ignores this file.
+dependency_overrides:
+  native_pdf_kit:
+    path: ../..

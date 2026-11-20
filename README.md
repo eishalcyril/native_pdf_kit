@@ -1,21 +1,28 @@
 # native_pdf_kit
 
-Fast, dependency-free **native PDF rendering and image encoding** for Flutter,
-built on direct interop — no platform channels, no bundled third-party engine.
+Fast, dependency-free **native PDF rendering, imaging, optimization and page
+operations** for Flutter, built on direct interop — no platform channels, no
+bundled third-party PDF engine.
 
 - **iOS / macOS**: CoreGraphics for PDF pages, ImageIO for JPEG/PNG encoding.
 - **Android**: JNIgen over the platform's `PdfRenderer`, `Bitmap` and
   `BitmapFactory`.
+- **Optimizer, text extraction and page edits**: our own pure-Dart PDF
+  parser/writer, shared by every platform.
+- **OCR**: opt-in companion package [`native_pdf_kit_ocr`](packages/native_pdf_kit_ocr)
+  (Apple Vision + PDFKit, Android ML Kit or LiteRT/PP-OCRv5).
 
-Everything here is our own code calling OS APIs. There is no third-party
-source in this package, so the only copyright notice is ours.
+Everything in the core package is our own code calling OS APIs. There is no
+third-party source, so the only copyright notice is ours.
 
 ## Why
 
 Platform channels serialize every call and force async plumbing. Rendering a
 PDF page or re-encoding an image is a bulk-data job: direct FFI passes bytes
 without a serialization round trip, and the system codecs are the fastest and
-highest-quality option on the platform.
+highest-quality option on the platform. The parser and writer are pure Dart so
+optimization, text extraction, merging and page edits work identically on
+every target.
 
 ## Device support
 
@@ -28,8 +35,14 @@ highest-quality option on the platform.
 
 ```yaml
 dependencies:
-  native_pdf_kit:
-    path: packages/native_pdf_kit   # or ^0.1.0 once published
+  native_pdf_kit: ^0.3.0
+```
+
+For OCR add the companion:
+
+```yaml
+dependencies:
+  native_pdf_kit_ocr: ^0.1.0
 ```
 
 ## Usage
@@ -60,7 +73,7 @@ final result = NativeImageCompressor.compress(
 );
 ```
 
-### Optimization, text and page edits
+### Optimization
 
 ```dart
 final report = NativePdfOptimizer.optimize(
@@ -70,11 +83,25 @@ final report = NativePdfOptimizer.optimize(
   jpegQuality: 85,
 );
 if (report.changed) save(report.bytes);
+```
 
-final text = PdfTextExtractor.extract(bytes);          // best effort
+The optimizer understands classic xref tables, **xref streams, hybrid files
+and `/ObjStm` object streams**, follows incremental-update `/Prev` chains, and
+applies PNG/TIFF predictors. It drops unreachable objects, recompresses Flate
+streams at level 9, downsamples `DCTDecode` JPEGs, and converts 8-bit
+DeviceRGB/DeviceGray **Flate images to JPEG**. It re-parses its own output,
+compares page counts, and returns the input unchanged for anything it cannot
+handle safely (encryption, JPX/CCITT/JBIG2, masks, CMYK, palettes).
+
+### Text and page edits
+
+```dart
+final text = PdfTextExtractor.extract(bytes);
+final pages = PdfTextExtractor.extractPages(bytes); // per page, one parse
+
 final rotated = PdfPageEditor.rotate(bytes, degrees: 90);
-final reordered = reorderPdfPages(bytes, [2, 0]);       // also split/remove
-final merged = mergePdfs([first, second]);              // append documents
+final reordered = reorderPdfPages(bytes, [2, 0]);   // also split/remove
+final merged = mergePdfs([first, second]);          // append documents
 
 final meta = PdfMetadataEditor.read(bytes);
 final withMeta = PdfMetadataEditor.write(
@@ -83,14 +110,33 @@ final withMeta = PdfMetadataEditor.write(
 );
 ```
 
-The optimizer understands classic xref tables, drops unreachable objects,
-recompresses Flate streams at level 9 and downsamples `DCTDecode` images. It
-re-parses its own output, compares page counts, and returns the input unchanged
-for anything it cannot handle safely (xref streams, hybrid files, encryption).
+The pure-Dart text extractor reads `Tj`/`TJ` from Flate or uncompressed
+content streams and now handles predictors. It ignores CMaps, so simple
+standard-font documents work best. Scanned pages have no text layer — use the
+OCR companion, which can fall back to OCR page by page.
 
-Text extraction reads `Tj`/`TJ` from Flate or uncompressed content streams; it
-ignores CMaps, so simple standard-font documents work best. Scanned pages have
-no text layer.
+### OCR with realtime progress
+
+```dart
+final document = NativePdfDocument.open('/path/scan.pdf');
+
+await for (final event in NativePdfOcr.recognizeDocument(document)) {
+  switch (event) {
+    case PdfOcrProgress():
+      print('${(event.overallProgress * 100).round()}% ${event.stage}');
+    case PdfOcrPageEvent():
+      print(event.page.text);
+    case PdfOcrDoneEvent():
+      print(event.document.text);
+  }
+}
+```
+
+`native_pdf_kit_ocr` uses Apple Vision + PDFKit on Apple platforms and ML Kit
+Text Recognition v2 (bundled) on Android, with an optional LiteRT + PP-OCRv5
+engine. It reports per-page and intra-page progress, supports cancellation and
+returns normalized line boxes. See the [companion README](packages/native_pdf_kit_ocr/README.md)
+for the licensing and Android setup decisions.
 
 ## Capabilities
 
@@ -98,9 +144,11 @@ no text layer.
 NativePdfCapabilities.isSupported;      // iOS, macOS, Android
 NativePdfCapabilities.rendering;        // page count, size, raster
 NativePdfCapabilities.imageCompression; // resize + JPEG/PNG
-NativePdfCapabilities.optimization;     // in-house optimizer
+NativePdfCapabilities.optimization;     // parser/writer
 NativePdfCapabilities.textExtraction;   // best-effort text layer
 NativePdfCapabilities.pageEditing;      // rotate/reorder/remove/split
+NativePdfCapabilities.merge;            // cross-document merge
+NativePdfCapabilities.metadata;         // document info dictionary
 ```
 
 Unsupported features fail with an explicit exception rather than silently
@@ -110,17 +158,19 @@ doing nothing.
 
 - Rendering and encoding happen in the system stacks, in C, with no Dart-side
   image decode.
-- The API is synchronous; call it from a background isolate for large pages so
-  the UI thread stays free.
+- The rendering API is synchronous; call it from a background isolate for large
+  pages so the UI thread stays free.
 - Page images are returned as freshly allocated bytes; no native handles are
   retained, so there is nothing to leak.
 - Rendering honours the PDF page rotation and fills transparency with white,
   which is what OCR and document previews expect.
+- The OCR companion polls a native worker; progress does not require a platform
+  channel and does not block the UI isolate.
 
 ## Running the tests
 
-`flutter test` runs on the Dart VM, which does not link CocoaPods sources into
-the test process. Build the test dylib first:
+`flutter test` runs on the Dart VM, which does not link CocoaPods/SPM sources
+into the test process. Build the test dylib first:
 
 ```sh
 ./tool/build_native_test_lib.sh
@@ -134,12 +184,28 @@ cd example
 flutter run
 ```
 
+The OCR companion has its own test suite:
+
+```sh
+cd packages/native_pdf_kit_ocr
+./tool/build_native_test_lib.sh
+flutter test
+```
+
+Device tests (ML Kit, LiteRT and Vision) live in the example:
+
+```sh
+cd example
+flutter test integration_test/ocr_test.dart -d <device-id>
+```
+
 ## Android notes
 
-Android has no public text-extraction or PDF-writing API, so this package is
-honest about capabilities: rendering, page size and image encoding work;
-`textExtraction` and `editing` report `false`. Bindings are generated with
-JNIgen from `android.jar` and call the platform classes directly.
+Android has no public PDF-writing API, so the optimizer, text extraction,
+merge and page edits are pure Dart and work on every target. Rendering, page
+size and image encoding use `PdfRenderer`/`Bitmap` through generated JNIgen
+bindings. `textExtraction`, `pageEditing`, `merge`, `optimization` and
+`metadata` are available on Android.
 
 Regenerate the Android bindings after changing the class list:
 
@@ -149,13 +215,15 @@ dart run tool/jnigen.dart
 
 That needs a JDK 17–21 and the Android SDK (`ANDROID_HOME`).
 
-## Not in 0.2.0
+## Not in 0.3.0
 
 - **Signing** and **encryption**: security-critical; they need vetted crypto and
-  an audit rather than a home-grown implementation.
-- **OCR**: needs a platform/ML engine (Apple Vision, Android ML Kit). ML Kit is
-  a Google SDK, so it is a licensing decision separate from this package.
-- Annotations, forms and metadata editing.
+  an audit rather than a home-grown implementation. Encrypted PDFs are returned
+  unchanged by the optimizer and cannot be OCRed until decrypted.
+- **Lossy recompression of JPX/CCITT/JBIG2/CMYK images** and soft-masked
+  images: left untouched for correctness.
+- Annotations and form fields.
+- OCR is in the companion package, not here.
 
 ## License
 

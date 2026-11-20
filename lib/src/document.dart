@@ -123,7 +123,9 @@ abstract final class NativePdfCapabilities {
   /// Native image resizing and JPEG/PNG encoding.
   static bool get imageCompression => isSupported;
 
-  /// Best-effort text-layer extraction (no font CMaps).
+  /// Best-effort text-layer extraction (pure Dart; no font CMaps).
+  ///
+  /// For high-fidelity extraction and OCR use `native_pdf_kit_ocr`.
   static bool get textExtraction => isSupported;
 
   /// Page rotate, reorder, remove and split.

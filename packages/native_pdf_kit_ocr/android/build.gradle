@@ -1,0 +1,43 @@
+// Android module for native_pdf_kit_ocr.
+//
+// The bridge is plain Java called through JNIgen's low-level JNI API. ML Kit
+// text recognition is a normal implementation dependency (bundled model).
+// LiteRT is compileOnly: apps that want the PP-OCRv5 engine add
+// `implementation "com.google.ai.edge.litert:litert:2.3.0"` and raise minSdk to
+// 24. Apps that only use ML Kit stay on minSdk 21.
+group = 'com.eishal.native_pdf_kit_ocr'
+version = '1.0'
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace = 'com.eishal.native_pdf_kit_ocr'
+    compileSdk = 36
+
+    defaultConfig {
+        minSdk = 21
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        release {
+            consumerProguardFiles 'consumer-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
+    compileOnly 'com.google.ai.edge.litert:litert:2.3.0'
+}

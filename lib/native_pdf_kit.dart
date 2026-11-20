@@ -1,8 +1,11 @@
-/// Fast native PDF rendering and image encoding for Flutter.
+/// Fast native PDF rendering, imaging, optimization and page operations.
 ///
-/// v0.1 supports iOS and macOS. All work happens in the system PDF and image
-/// stacks through direct FFI — no platform channels, no bundled third-party
-/// engine.
+/// iOS/macOS call CoreGraphics and ImageIO through direct FFI; Android calls
+/// `PdfRenderer`/`Bitmap` through JNIgen. The parser, writer, text extraction,
+/// merge and page edits are pure Dart and work on every target. There are no
+/// platform channels and no bundled third-party PDF engine.
+///
+/// OCR lives in the companion package `native_pdf_kit_ocr`.
 library;
 
 export 'src/bindings.dart' show NativeImageFormat, NativePdfException;

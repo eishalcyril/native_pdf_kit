@@ -1,12 +1,12 @@
 # AGENTS.md — native_pdf_kit
 
 Native PDF toolkit for Flutter. Direct iOS/Android interop, no platform
-channels and no bundled third-party engine.
+channels and no bundled third-party PDF engine.
 
 ## Purpose
 
-Provide fast, reliable PDF rendering, imaging, optimization, text extraction
-and page operations for Flutter apps, entirely from our own code, with a
+Provide fast, reliable PDF rendering, imaging, optimization, text extraction,
+OCR and page operations for Flutter apps, mostly from our own code, with a
 permissive MIT license owned by Eishal Cyril.
 
 ## Repository
@@ -16,75 +16,99 @@ permissive MIT license owned by Eishal Cyril.
 - Identity: `Eishal Cyril <eishalcyril2@gmail.com>`
 - SSH: repository-local `core.sshCommand` uses `~/.ssh/id_ed25519_personal`.
 - Never commit or push this project to the office Bitbucket repository.
+- Layout: the core package is the repository root; the OCR companion lives in
+  `packages/native_pdf_kit_ocr`.
 
-## Resume here — session handoff (2026-11-20)
+## Resume here — session handoff (2026-11-20, second pass)
 
 ### Where we stopped
 
-- Package version: **0.2.0**. Committed and pushed to `main`; this note is
-  part of that history.
+- Core version: **0.3.0**. OCR companion: **0.1.0**.
 - **Not published to pub.dev** — no credentials on the development machine.
-  `dart pub publish --dry-run` reports **0 warnings** (~245 KB archive).
-- Tests: **12/12 pass**. Run `./tool/build_native_test_lib.sh` before
-  `flutter test` (the Dart VM test process does not link the plugin).
+  - Core `dart pub publish --dry-run`: 0 warnings after committing (~259 KB).
+  - OCR dry-run via `packages/native_pdf_kit_ocr/tool/publish.sh --dry-run`
+    (with `NATIVE_PDF_KIT_PATH` for local validation): 0 warnings, 1 hint for
+    the temporary override (~35 KB).
+- Tests:
+  - core: **16/16** (`flutter test`, after `./tool/build_native_test_lib.sh`),
+  - OCR macOS: **6/6** (PDFKit text layer, Vision OCR, OCR-only, text-only,
+    capabilities, cancellation),
+  - Android device: **3/3** on the Pixel 8 Pro API 36 emulator (ML Kit document,
+    ML Kit image, LiteRT PP-OCRv5 image).
 - Verified builds:
-  - iOS simulator (app + example),
+  - iOS simulator debug (example launched on iPhone 17 Pro simulator),
   - iOS device release (`flutter build ios --release --no-codesign`),
   - Android debug and release APK,
-  - fresh clone of this repo: pub get, tests, analyze, example iOS build.
-- Supported targets: **iOS 13+**, macOS 10.15+, **Android API 21+**.
+  - macOS debug (Swift Package Manager integration, not just CocoaPods),
+  - example builds and launches.
+- Supported targets: **iOS 13+**, macOS 10.15+, **Android API 21+**
+  (LiteRT requires API 24 and is app opt-in).
 - Office app state (`/Users/cufa/workspace/hims-f-b-mobileapp`):
   - `packages/native_pdf_kit/` has been **removed** from the app.
   - App `pubspec.yaml` uses a git dependency on this repo (`ref: main`).
   - App builds and launches on the iPhone 18 Pro simulator.
   - App changes are **uncommitted**; do not push them to Bitbucket as part of
     this package work.
-  - Files touched in the app: `pubspec.yaml`, `pubspec.lock`,
+  - Files touched: `pubspec.yaml`, `pubspec.lock`,
     `lib/hims_inventory/grn_ai/screens/elements/document_upload.dart`.
-  - The app's PDF compression path: `_optimizePdfInBackground` →
+  - PDF compression path: `_optimizePdfInBackground` →
     `NativePdfOptimizer.optimize` via `compute`; `_compressPdf({lossless})`.
 
 ### Immediate next actions, in order
 
-1. **Publish 0.2.0** (`dart pub login`, dry run, `dart pub publish`), then
-   switch the office app from the git dependency to `native_pdf_kit: ^0.2.0`
-   so CI does not depend on a personal git repository.
-2. **Optimizer coverage (highest value):**
-   xref streams, hybrid files and object streams (`/ObjStm`); then Flate
-   images with predictors, JPX/CCITT/JBIG2, CMYK and soft masks.
-   Until then, modern PDFs are returned unchanged by the optimizer.
-3. **OCR decision:** Apple Vision is the Apple path. Android needs Google
-   ML Kit (third-party SDK/licence) or a self-hosted model; the app does not
-   use OCR, so this is a product/licensing decision, not a blocker.
+1. **Publish `native_pdf_kit` 0.3.0** (`dart pub login`, dry run, publish), then
+   **publish `native_pdf_kit_ocr` 0.1.0** with
+   `packages/native_pdf_kit_ocr/tool/publish.sh` (it stages a clean copy; the
+   core version must be live first). Then switch the office app from the git
+   dependency to `native_pdf_kit: ^0.3.0`.
+2. **Office app OCR integration**, if product wants it: add
+   `native_pdf_kit_ocr` (path or git `path: packages/native_pdf_kit_ocr`) and
+   use `NativePdfOcr.recognizeDocument` for scanned GRNs. Decide whether the
+   bundled ML Kit model is acceptable; otherwise add the unbundled artifact or
+   move to LiteRT.
+3. **Optimizer coverage still missing**: JPX/CCITT/JBIG2, CMYK, soft masks,
+   palettes and encrypted PDFs are left unchanged. Implement only with real
+   samples and a visual comparison; do not break the "never corrupt" rule.
 4. **Signing/encryption:** do not hand-roll. Requires AES-256 per ISO 32000,
    PKCS#7/CMS, X.509, timestamping and a security audit.
-5. **Editing:** annotations, form fields, richer content edits, thumbnail
-   cache.
-6. **Quality:** older-device matrix, large-file benchmarks, parser/writer
-   fuzzing, Android optimizer runtime on a physical device (the current
-   Android verification is emulator + build).
+5. **Editing:** annotations, form fields, richer content edits, thumbnail cache.
+6. **Quality:** physical Android device matrix, very large files (500+ pages),
+   parser/writer fuzzing beyond the 60-mutation smoke test, memory ceilings for
+   high-resolution OCR, and a LiteRT benchmark on a physical phone.
 
 ### Known limitations to keep visible
 
-- Optimizer: classic xref tables only; encrypted/hybrid/object-stream PDFs
-  are returned unchanged (safe, not optimized).
-- Image downsampling: `DCTDecode`, RGB/gray, no masks; everything else is kept.
-- Text extraction: `Tj`/`TJ` best effort; font CMaps and custom encodings are
-  ignored.
-- Merge: appends pages and renumbers objects; source outlines are not carried.
-- Page edits: flatten the page tree; target outlines are dropped.
-- `tool/jnigen.dart` needs `flutter pub get` **inside this package** and
-  `ANDROID_HOME`/`ANDROID_SDK_ROOT`. The app's analyzer no longer includes it.
-- SPM manifest requires `FlutterFramework`; CocoaPods and SPM builds are both
-  tested.
+- Optimizer: xref streams, hybrid files, `/ObjStm`, `/Prev` incremental updates
+  and PNG/TIFF predictors are supported. Encrypted, JPX/CCITT/JBIG2, CMYK,
+  indexed/palette, masked and soft-masked images are returned unchanged.
+- Flate image conversion handles 8-bit DeviceRGB/DeviceGray only, no masks.
+- Text extraction (pure Dart): `Tj`/`TJ` best effort; CMaps and custom
+  encodings are ignored. Apple's companion uses PDFKit instead.
+- Merge appends pages and renumbers objects; source outlines are dropped.
+- Page edits flatten the page tree; target outlines are dropped.
+- OCR: ML Kit cannot abort an in-flight page (Vision can). LiteRT confidence is
+  reported as 0.0 because CTC logits are not calibrated. LiteRT models are not
+  bundled and require minSdk 24.
+- Android OCR/ML Kit needs the bundled model in the APK (~98 MB universal
+  release example; use ABI splits in production).
+- `tool/jnigen.dart` needs `flutter pub get` inside the core package and
+  `ANDROID_HOME`/`ANDROID_SDK_ROOT`.
+- The OCR package is nested inside the core repository. Pub applies the root
+  `.pubignore` (which excludes `packages/` from the core archive) to nested
+  publishes too, so **do not publish it in place**; use
+  `tool/publish.sh`, which stages a clean copy in a temp directory.
+- SPM manifests require `FlutterFramework`; CocoaPods and SPM builds are both
+  tested (macOS build used SPM).
 
 ### Handoff hygiene
 
 - Personal identity/key only; never use the office Bitbucket credentials here.
 - Generated files (`lib/src/android.g.dart`, example `GeneratedPlugin*`) are
   not hand-edited.
-- Licensed MIT © Eishal Cyril; no third-party source in this package.
-  `package:ffi` and `package:jni` are dependencies, not bundled code.
+- Licensed MIT © Eishal Cyril; no third-party source in either package.
+  `package:ffi`, `package:jni`, ML Kit and LiteRT are dependencies, not bundled
+  source. PP-OCRv5 weights are Apache-2.0 and must not be committed.
+- Test dylibs and `.litert_models` are build artifacts; do not commit them.
 
 ## Architecture
 
@@ -103,68 +127,95 @@ darwin/native_pdf_kit/         C shim over CoreGraphics + ImageIO
 android/build.gradle           Android module declaration (Dart/JNI only)
 tool/jnigen.dart               Android binding generator
 tool/build_native_test_lib.sh  macOS test dylib builder
-test/                          unit tests
-example/                       iOS/Android/macOS example app
+test/                          core tests (16)
+example/                       iOS/Android/macOS example, demo UI,
+                               integration_test/ocr_test.dart
+packages/native_pdf_kit_ocr/
+  lib/src/native_pdf_ocr.dart  page orchestration, progress, cancellation
+  lib/src/apple_ocr.dart       Vision/PDFKit FFI + pollable session
+  lib/src/android_ocr.dart     JNI bridge (low-level package:jni)
+  darwin/.../native_pdf_ocr.m  PDFKit text layer, CoreGraphics render, Vision
+  android/src/main/java/...    OcrBridge, MlKitEngine, LiteRtEngine
+  test/                        macOS OCR tests (6)
 ```
 
-- **Apple**: direct FFI (`DynamicLibrary.process`) to a narrow C surface that
-  uses CoreGraphics and ImageIO. Linked with CocoaPods and SPM.
-- **Android**: JNIgen bindings to `android.graphics.pdf.PdfRenderer`,
-  `Bitmap` and `BitmapFactory`, through `package:jni`.
-- **No native runtime of our own on Android**; the platform classes do the
-  work.
+- **Apple core**: direct FFI (`DynamicLibrary.process`) to a narrow C surface
+  over CoreGraphics and ImageIO. Linked with CocoaPods and SPM.
+- **Apple OCR**: Objective-C surface over PDFKit, CoreGraphics and Vision.
+  Work runs on a global queue; Dart polls status, progress and stage. Vision's
+  `progressHandler` gives intra-page progress; cancellation uses
+  `VNRequest.cancel`.
+- **Android core**: JNIgen to `android.graphics.pdf.PdfRenderer`, `Bitmap` and
+  `BitmapFactory`, through `package:jni`.
+- **Android OCR**: a Java bridge with its own worker thread. ML Kit runs
+  synchronously on that thread with a latch; LiteRT runs the PP-OCRv5 detector
+  and CTC recognizer. Dart polls a JSON status. Android 15+ text extraction
+  uses `PdfRenderer.Page.getTextContents`; older versions fall back to the
+  pure-Dart extractor in a background isolate.
 - **Optimizer**: pure Dart parser/writer, Flate via `dart:io` zlib, embedded
-  JPEG downsampling through the platform codecs.
+  JPEG conversion through the platform codecs.
+- **No platform channels anywhere.**
 
-## Completed — 0.2.0
+## Completed — 0.3.0 / OCR 0.1.0
 
-- Page count, media box, render to JPEG/PNG at a target width.
-- Native image resize/encode with EXIF orientation (Apple ImageIO, Android
-  Bitmap).
-- In-house optimizer:
-  - classic xref parsing, reachability and garbage collection,
-  - maximum-effort Flate recompression,
-  - JPEG (`DCTDecode`, RGB/gray, no masks) downsampling,
-  - output re-parsed and page-count verified; unsupported input returned
-    unchanged.
-- Best-effort text-layer extraction (`Tj`, `TJ`, `'`, `"`; Flate/uncompressed).
-- Page rotate, reorder, remove, split/extract (`reorderPdfPages`).
-- Cross-document merge (`mergePdfs`) with object renumbering.
-- Document metadata read/write (`PdfMetadataEditor`).
-- Capability flags (`NativePdfCapabilities`).
-- iOS 13+, macOS 10.15+, Android API 21+.
-- Verified: iOS device release build (`--no-codesign`), Android release APK,
-  iOS simulator run, 12/12 tests.
+- Core 0.2.0 features (rendering, imaging, optimizer, text, page edits, merge,
+  metadata).
+- Optimizer: xref streams, hybrid files, `/ObjStm` object streams,
+  incremental-update `/Prev` chains, PNG/TIFF predictors, Flate RGB/gray image
+  to JPEG conversion, `DCTDecode` downsampling.
+- `PdfTextExtractor.extractPages` (per-page, one parse), predictor-aware.
+- OCR companion:
+  - Apple Vision revision 3, accurate/fast, language hints, auto-detect,
+    line boxes, confidence, PDFKit text layer with per-line boxes,
+    intra-page progress and cancellation.
+  - Android ML Kit Text Recognition v2 bundled Latin; optional Chinese,
+    Devanagari, Japanese, Korean artifacts via reflection.
+  - Android LiteRT + PP-OCRv5 (DB detector, CTC decoder, dictionary) with
+    app-supplied models.
+  - `PdfOcrEvent` stream: progress, page, done; `extractDocument` /
+    `extractImage` conveniences; cooperative cancellation.
+  - Example demo UI with engine/mode pickers, live progress, page cards.
+- Verified on macOS tests, iOS simulator/device builds, Android emulator
+  runtime (ML Kit + LiteRT), macOS SPM build.
+
+### Benchmarks (macOS, Dart JIT, `tool/benchmark.dart`)
+
+- 100-page text PDF, 0.31 MB: `extract` 19 ms, `extractPages` 16 ms,
+  lossless optimize 15 ms (322 KB → 54.5 KB).
 
 ## Planned / not done
 
 1. **Optimizer coverage**
-   - xref streams, hybrid files, object streams (`/ObjStm`)
-   - Flate images with predictors, JPX/CCITT/JBIG2, CMYK, soft masks
-   - encrypted PDFs (needs decryption first)
+   - JPX/CCITT/JBIG2, CMYK, palettes, soft masks.
+   - encrypted PDFs (needs decryption first).
+   - fuzzing beyond the smoke test; large-file benchmarks.
 2. **OCR**
-   - Apple Vision (OS framework) is the preferred Apple path.
-   - Android needs Google ML Kit or a self-hosted model; ML Kit is a
-     third-party SDK and needs an explicit licensing decision.
-3. **Signing and encryption**
-   - Do not hand-roll. Requires AES-256 per ISO 32000, PKCS#7/CMS, X.509,
-     timestamping and a security audit.
-4. **Editing**
-   - annotations, form fields, richer content editing, thumbnails cache.
-5. **Quality**
-   - device matrix (older iPhones/Android), large-file benchmarks, fuzzing of
-     the parser/writer.
+   - physical Android device verification and memory limits on large scans.
+   - ML Kit script artifacts bundled by the app; unbundled Play Services option.
+   - LiteRT GPU/NPU delegates and model download UX.
+   - optional PDF page-range UI helpers.
+3. **Signing and encryption** — do not hand-roll.
+4. **Editing** — annotations, form fields, thumbnail cache.
+5. **Publishing** — core 0.3.0, then OCR 0.1.0, then app dependency bump.
 
 ## Commands
 
 ```sh
+# Core
 flutter pub get
 flutter analyze
 ./tool/build_native_test_lib.sh   # macOS test dylib
 flutter test
 
-# Android bindings
+# Android bindings (core)
 ANDROID_HOME="$HOME/Library/Android/sdk" dart run tool/jnigen.dart
+
+# OCR companion
+cd packages/native_pdf_kit_ocr
+flutter pub get
+./tool/build_native_test_lib.sh
+flutter test
+tool/fetch_litert_ocr_models.sh /tmp/ppocr   # optional models
 
 # Example builds
 cd example
@@ -172,38 +223,54 @@ flutter build ios --simulator --debug
 flutter build ios --release --no-codesign
 flutter build apk --debug
 flutter build apk --release
+flutter build macos --debug
+
+# Device OCR tests (models optional; skip if absent)
+flutter test integration_test/ocr_test.dart -d emulator-5554
 
 # Publish
 dart pub publish --dry-run
 dart pub publish
+packages/native_pdf_kit_ocr/tool/publish.sh --dry-run
+packages/native_pdf_kit_ocr/tool/publish.sh
 ```
 
 ## Testing notes
 
 - `flutter test` runs on the Dart VM; plugin sources are not linked into the
-  test process. Build `build/libnative_pdf_kit.dylib` first with
-  `tool/build_native_test_lib.sh`.
-- The optimizer accepts classic xref PDFs only. Tests cover text PDFs, image
-  PDFs, merge, metadata, rotate, reorder/split, unsupported input and a real
-  CUPS-generated PDF.
-- Generated files `lib/src/android.g.dart` and `example/**/GeneratedPlugin*`
-  must not be hand-edited.
+  test process. Build the test dylib first with `tool/build_native_test_lib.sh`.
+- Core tests cover text/image PDFs, merge, metadata, rotate, reorder/split,
+  unsupported input, xref streams, hybrid files, object streams, predictors,
+  incremental updates, Flate-to-JPEG, a real CUPS PDF and a 60-iteration
+  corruption smoke test.
+- OCR tests need the companion's dylib (`build/libnative_pdf_kit_ocr.dylib`)
+  and copy the core dylib alongside it.
+- Android device tests run through the example app. To exercise LiteRT, push
+  the three model files to `/data/local/tmp/ppocr` (world-readable); the test
+  also checks the app cache and skips when models are absent.
+- The emulator used for verification is `Pixel_8_Pro_API_36`; its data
+  partition was raised to 10 GB so the universal debug APK can install.
 
 ## License policy
 
-- MIT, Copyright (c) 2026 Eishal Cyril.
-- No third-party source is copied into this package.
-- `package:ffi` and `package:jni` are dependencies (BSD, Dart team), not
-  bundled source. Do not copy their license text into this repository's
-  README/LICENSE.
+- MIT, Copyright (c) 2026 Eishal Cyril, for both packages.
+- No third-party source is copied into these packages.
+- `package:ffi`, `package:jni`, ML Kit and LiteRT are dependencies, not bundled
+  source. Do not copy their license text into these repositories' README/LICENSE.
+- ML Kit is a closed-source Google SDK with its own terms; it is bundled by
+  default in the OCR companion and must be an explicit product decision.
+- PP-OCRv5 models are Apache-2.0 (PaddleOCR) and are downloaded, not
+  redistributed. Do not commit model weights.
 - Do not relicense upstream engines or embed AGPL/commercial PDF engines
   without an explicit decision.
 
 ## App integration
 
-- The office Flutter app must not vendor this package under its `packages/`
+- The office Flutter app must not vendor the core package under its `packages/`
   directory.
-- Preferred: publish to pub.dev and depend on `native_pdf_kit: ^0.2.0`.
-- Temporary option: a git dependency on this repository, `ref: main`.
-- After publishing, switch the app to the pub version and re-run
+- Preferred: publish to pub.dev and depend on `native_pdf_kit: ^0.3.0` and,
+  if OCR is needed, `native_pdf_kit_ocr: ^0.1.0`.
+- Temporary option: a git dependency on this repository, `ref: main`; for OCR
+  use the same git dependency with `path: packages/native_pdf_kit_ocr`.
+- After publishing, switch the app to the hosted versions and re-run
   `flutter pub get`.

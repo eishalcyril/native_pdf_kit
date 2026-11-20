@@ -14,3 +14,6 @@ example/android/local.properties
 example/android/app/build/
 example/ios/Flutter/ephemeral/
 example/macos/Flutter/ephemeral/
+
+# Companion package lives in its own archive
+packages/

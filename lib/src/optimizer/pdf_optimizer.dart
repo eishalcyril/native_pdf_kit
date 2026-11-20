@@ -150,6 +150,14 @@ final class _PdfStream extends _PdfObject {
   final Uint8List data;
 }
 
+/// An entry in an xref stream that points into an `/ObjStm` object stream.
+final class _CompressedRef {
+  const _CompressedRef(this.stream, this.index);
+
+  final int stream;
+  final int index;
+}
+
 final class _PdfDocument {
   _PdfDocument(this.objects, this.generations, this.trailer);
   final Map<int, _PdfObject> objects;
@@ -452,6 +460,8 @@ class _Parser {
   final Map<int, int> _generations = {};
   final Map<int, _PdfObject> _objects = {};
   final Set<int> _loading = {};
+  final Map<int, _CompressedRef> _compressed = {};
+  final Set<int> _loadedObjectStreams = {};
   _PdfDict? _trailer;
 
   _PdfDocument parse() {
@@ -495,57 +505,167 @@ class _Parser {
 
     while (next > 0 && seen.add(next)) {
       final lexer = _Lexer(bytes, next)..skipWhitespace();
-      if (!lexer.matchKeyword('xref')) {
-        throw const _Unsupported('xref streams are not supported yet');
-      }
-
-      final current = <int, int>{};
-      while (true) {
-        lexer.skipWhitespace();
-        if (lexer.matchKeyword('trailer')) break;
-        final first = lexer.readInteger();
-        final count = lexer.readInteger();
-        for (var i = 0; i < count; i++) {
-          final entryOffset = lexer.readInteger();
-          final generation = lexer.readInteger();
+      if (lexer.matchKeyword('xref')) {
+        final current = <int, int>{};
+        final currentGenerations = <int, int>{};
+        while (true) {
           lexer.skipWhitespace();
-          if (lexer.atEnd) throw const _Unsupported('truncated xref');
-          final marker = latin1.decode([bytes[lexer.position]]);
-          lexer.position++;
-          current[first + i] = marker == 'n' ? entryOffset : -1;
-          if (marker == 'n') {
-            _generations.putIfAbsent(first + i, () => generation);
+          if (lexer.matchKeyword('trailer')) break;
+          final first = lexer.readInteger();
+          final count = lexer.readInteger();
+          for (var i = 0; i < count; i++) {
+            final entryOffset = lexer.readInteger();
+            final generation = lexer.readInteger();
+            lexer.skipWhitespace();
+            if (lexer.atEnd) throw const _Unsupported('truncated xref');
+            final marker = latin1.decode([bytes[lexer.position]]);
+            lexer.position++;
+            current[first + i] = marker == 'n' ? entryOffset : -1;
+            if (marker == 'n') {
+              currentGenerations[first + i] = generation;
+            }
           }
         }
-      }
 
-      final trailerObject = lexer.parseObject();
-      if (trailerObject is! _PdfDict) {
-        throw const _Unsupported('invalid trailer');
-      }
-      if (trailerObject.entries.containsKey('XRefStm')) {
-        throw const _Unsupported('hybrid xref files');
-      }
-      if (trailerObject.entries.containsKey('Encrypt')) {
-        throw const _Unsupported('encrypted documents');
-      }
+        final trailerObject = lexer.parseObject();
+        if (trailerObject is! _PdfDict) {
+          throw const _Unsupported('invalid trailer');
+        }
 
-      _trailer ??= trailerObject;
-      // Newest entries win; older sections only fill gaps.
-      for (final entry in current.entries) {
-        _offsets.putIfAbsent(entry.key, () => entry.value);
-      }
+        // In a hybrid file the xref stream is authoritative for the entries it
+        // contains, so read it before inserting the classic table.
+        final xrefStream = trailerObject.entries['XRefStm'];
+        if (xrefStream is _PdfNumber) {
+          _readXrefStreamAt(xrefStream.value.toInt());
+        }
 
-      final prev = trailerObject.entries['Prev'];
-      next = prev is _PdfNumber ? prev.value.toInt() : 0;
+        _rejectEncrypted(trailerObject);
+        _mergeTrailer(trailerObject);
+
+        // Newest entries win; older sections only fill gaps.
+        for (final entry in current.entries) {
+          _offsets.putIfAbsent(entry.key, () => entry.value);
+          if (entry.value >= 0) {
+            _generations.putIfAbsent(
+              entry.key,
+              () => currentGenerations[entry.key] ?? 0,
+            );
+          }
+        }
+
+        final prev = trailerObject.entries['Prev'];
+        next = prev is _PdfNumber ? prev.value.toInt() : 0;
+      } else {
+        final trailer = _readXrefStreamAt(next);
+        if (trailer == null) {
+          throw const _Unsupported('invalid xref stream');
+        }
+        _rejectEncrypted(trailer);
+        _mergeTrailer(trailer);
+        final prev = trailer.entries['Prev'];
+        next = prev is _PdfNumber ? prev.value.toInt() : 0;
+      }
     }
 
-    if (_offsets.isEmpty) throw const _Unsupported('empty xref');
+    if (_offsets.isEmpty && _compressed.isEmpty) {
+      throw const _Unsupported('empty xref');
+    }
+  }
+
+  void _rejectEncrypted(_PdfDict trailer) {
+    if (trailer.entries.containsKey('Encrypt')) {
+      throw const _Unsupported('encrypted documents');
+    }
+  }
+
+  void _mergeTrailer(_PdfDict trailer) {
+    final existing = _trailer;
+    if (existing == null) {
+      _trailer = trailer;
+      return;
+    }
+    final merged = Map<String, _PdfObject>.of(existing.entries);
+    for (final entry in trailer.entries.entries) {
+      merged.putIfAbsent(entry.key, () => entry.value);
+    }
+    _trailer = _PdfDict(merged);
+  }
+
+  /// Reads a PDF 1.5 cross-reference stream and installs its entries.
+  _PdfDict? _readXrefStreamAt(int offset) {
+    int? streamNumber;
+    final object = _parseIndirectAt(
+      offset,
+      onHeader: (number, generation) => streamNumber = number,
+    );
+    if (object is! _PdfStream) return null;
+    final dictionary = object.dict;
+    final type = dictionary.entries['Type'];
+    if (type is! _PdfName || type.raw != 'XRef') return null;
+
+    final size = _intValue(dictionary.entries['Size']);
+    final widths = _intList(dictionary.entries['W']);
+    if (size == null || widths == null || widths.length < 3) return null;
+
+    final data = _decodedStreamData(object);
+    if (data == null) return null;
+
+    final index = _intList(dictionary.entries['Index']) ?? <int>[0, size];
+    var position = 0;
+    for (var pair = 0; pair + 1 < index.length; pair += 2) {
+      final first = index[pair];
+      final count = index[pair + 1];
+      if (count < 0) return null;
+      for (var i = 0; i < count; i++) {
+        final values = <int>[];
+        for (var field = 0; field < 3; field++) {
+          var value = 0;
+          for (var byte = 0; byte < widths[field]; byte++) {
+            if (position >= data.length) return dictionary;
+            value = (value << 8) | data[position++];
+          }
+          values.add(value);
+        }
+        final number = first + i;
+        final entryType = widths[0] == 0 ? 1 : values[0];
+        switch (entryType) {
+          case 0:
+            _offsets.putIfAbsent(number, () => -1);
+            break;
+          case 1:
+            _offsets.putIfAbsent(number, () => values[1]);
+            _generations.putIfAbsent(number, () => values[2]);
+            break;
+          case 2:
+            _compressed.putIfAbsent(
+              number,
+              () => _CompressedRef(values[1], values[2]),
+            );
+            _offsets.putIfAbsent(number, () => -1);
+            break;
+          default:
+            // Unknown entry types are reserved; ignore them.
+            break;
+        }
+      }
+    }
+
+    if (streamNumber != null) {
+      _offsets.putIfAbsent(streamNumber!, () => offset);
+    }
+    return dictionary;
   }
 
   _PdfObject _object(int number) {
     final cached = _objects[number];
     if (cached != null) return cached;
+
+    if (_compressed.containsKey(number)) {
+      _loadCompressed(number);
+      final loaded = _objects[number];
+      if (loaded != null) return loaded;
+      throw _Unsupported('missing compressed object $number');
+    }
 
     final offset = _offsets[number];
     if (offset == null || offset < 0) {
@@ -556,7 +676,7 @@ class _Parser {
     }
 
     try {
-      final object = _parseIndirectAt(offset);
+      final object = _parseIndirectAt(offset, expectedNumber: number);
       _objects[number] = object;
       return object;
     } finally {
@@ -564,12 +684,66 @@ class _Parser {
     }
   }
 
-  _PdfObject _parseIndirectAt(int offset) {
-    final lexer = _Lexer(bytes, offset)
-      ..skipWhitespace()
-      ..readInteger(); // object number
-    lexer.readInteger(); // generation
+  /// Loads one object from an `/ObjStm` object stream.
+  void _loadCompressed(int number) {
+    final reference = _compressed[number];
+    if (reference == null) {
+      throw _Unsupported('missing compressed object $number');
+    }
+    _loadObjectStream(reference.stream);
+    if (!_objects.containsKey(number)) {
+      throw _Unsupported('object $number is missing from its object stream');
+    }
+  }
+
+  void _loadObjectStream(int streamNumber) {
+    if (!_loadedObjectStreams.add(streamNumber)) return;
+    final object = _object(streamNumber);
+    if (object is! _PdfStream) {
+      throw _Unsupported('object stream $streamNumber is not a stream');
+    }
+    final count = _intValue(object.dict.entries['N']);
+    final first = _intValue(object.dict.entries['First']);
+    if (count == null || first == null || count < 0 || first < 0) {
+      throw _Unsupported('invalid object stream $streamNumber');
+    }
+    final data = _decodedStreamData(object);
+    if (data == null) throw const _Unsupported('undecodable object stream');
+
+    final header = _Lexer(data, 0);
+    final numbers = <int>[];
+    final offsets = <int>[];
+    for (var i = 0; i < count; i++) {
+      numbers.add(header.readInteger());
+      offsets.add(header.readInteger());
+    }
+    for (var i = 0; i < count; i++) {
+      final number = numbers[i];
+      final offset = offsets[i];
+      _objects.putIfAbsent(number, () {
+        if (first + offset >= data.length) {
+          throw const _Unsupported('object stream entry out of range');
+        }
+        return _Lexer(data, first + offset).parseObject();
+      });
+    }
+  }
+
+  _PdfObject _parseIndirectAt(
+    int offset, {
+    void Function(int number, int generation)? onHeader,
+    int? expectedNumber,
+  }) {
+    final lexer = _Lexer(bytes, offset)..skipWhitespace();
+    final number = lexer.readInteger();
+    final generation = lexer.readInteger();
     lexer.expectKeyword('obj');
+    onHeader?.call(number, generation);
+    if (expectedNumber != null && number != expectedNumber) {
+      throw _Unsupported(
+        'object $expectedNumber expected at $offset, found $number',
+      );
+    }
 
     final object = lexer.parseObject();
     lexer.skipWhitespace();
@@ -606,9 +780,15 @@ class _Parser {
       return length.value.toInt();
     }
     if (length is _PdfRef) {
-      final resolved = _object(length.number);
-      if (resolved is _PdfNumber && resolved.value >= 0) {
-        return resolved.value.toInt();
+      try {
+        final resolved = _object(length.number);
+        if (resolved is _PdfNumber && resolved.value >= 0) {
+          return resolved.value.toInt();
+        }
+      } catch (_) {
+        // The length may live in an object stream that is not available yet;
+        // fall back to scanning for endstream.
+        return null;
       }
     }
     return null;
@@ -753,23 +933,35 @@ class _Writer {
 
     final filter = _singleFilter(dictionary);
     if (filter == null || filter == 'FlateDecode') {
-      final decodable = !_hasPredictor(dictionary);
-      if (decodable) {
-        try {
-          final decoded = filter == 'FlateDecode'
-              ? Uint8List.fromList(ZLibDecoder().convert(stream.data))
-              : stream.data;
-          final compressed = Uint8List.fromList(
-            ZLibEncoder(level: 9).convert(decoded),
+      final decoded = _decodedStreamData(stream);
+      if (decoded != null) {
+        if (reduceImages) {
+          final reduced = _maybeReduceFlateImage(
+            dictionary,
+            decoded,
+            stream.data.length,
           );
-          if (filter == null || compressed.length < stream.data.length) {
-            data = compressed;
-            dictionary['Filter'] = const _PdfName('FlateDecode');
+          if (reduced != null) {
+            data = reduced;
+            dictionary['Filter'] = const _PdfName('DCTDecode');
             dictionary.remove('DecodeParms');
-            streamsRecompressed++;
+            imagesReduced++;
           }
-        } catch (_) {
-          // Keep the stream as stored.
+        }
+        if (identical(data, stream.data)) {
+          try {
+            final compressed = Uint8List.fromList(
+              ZLibEncoder(level: 9).convert(decoded),
+            );
+            if (filter == null || compressed.length < stream.data.length) {
+              data = compressed;
+              dictionary['Filter'] = const _PdfName('FlateDecode');
+              dictionary.remove('DecodeParms');
+              streamsRecompressed++;
+            }
+          } catch (_) {
+            // Keep the stream as stored.
+          }
         }
       }
     } else if (filter == 'DCTDecode' && reduceImages) {
@@ -781,6 +973,67 @@ class _Writer {
     _buffer.add(latin1.encode('\nstream\n'));
     _buffer.add(data);
     _buffer.add(latin1.encode('\nendstream\n'));
+  }
+
+  /// Converts an 8-bit DeviceRGB/DeviceGray Flate image to JPEG.
+  ///
+  /// Scanned PDFs frequently store full-resolution raster pages as Flate. A
+  /// lossy JPEG at a capped dimension is far smaller and keeps the document
+  /// readable. Everything with masks, palettes, CMYK or unusual bit depths is
+  /// left untouched.
+  Uint8List? _maybeReduceFlateImage(
+    Map<String, _PdfObject> dictionary,
+    Uint8List decoded,
+    int originalLength,
+  ) {
+    final subtype = dictionary['Subtype'];
+    if (subtype is! _PdfName || subtype.raw != 'Image') return null;
+    for (final key in const ['SMask', 'Mask', 'ImageMask', 'Decode']) {
+      if (dictionary.containsKey(key)) return null;
+    }
+
+    final bits = dictionary['BitsPerComponent'];
+    if (bits is _PdfNumber && bits.value != 8) return null;
+
+    final colorSpace = dictionary['ColorSpace'];
+    if (colorSpace is! _PdfName) return null;
+    final components = switch (colorSpace.raw) {
+      'DeviceRGB' => 3,
+      'DeviceGray' => 1,
+      _ => 0,
+    };
+    if (components == 0) return null;
+
+    final width = _intValue(dictionary['Width']);
+    final height = _intValue(dictionary['Height']);
+    if (width == null || height == null || width <= 0 || height <= 0) {
+      return null;
+    }
+    final longest = width > height ? width : height;
+    if (longest <= maxImageDimension) return null;
+
+    final expected = width * height * components;
+    if (decoded.length < expected) return null;
+    final pixels = decoded.length == expected
+        ? decoded
+        : Uint8List.sublistView(decoded, 0, expected);
+
+    try {
+      final png = _encodePng(width, height, components, pixels);
+      final result = NativeImageCompressor.compress(
+        png,
+        maxDimension: maxImageDimension,
+        quality: jpegQuality,
+        format: NativeImageFormat.jpeg,
+      );
+      if (result.byteLength >= originalLength) return null;
+      if (result.width >= width && result.height >= height) return null;
+      dictionary['Width'] = _PdfNumber(result.width);
+      dictionary['Height'] = _PdfNumber(result.height);
+      return result.bytes;
+    } catch (_) {
+      return null;
+    }
   }
 
   Uint8List _maybeReduceImage(
@@ -838,19 +1091,6 @@ class _Writer {
     return filter == null ? null : '\u0000unsupported';
   }
 
-  bool _hasPredictor(Map<String, _PdfObject> dictionary) {
-    final params = dictionary['DecodeParms'];
-    if (params is _PdfDict) {
-      return params.entries.containsKey('Predictor');
-    }
-    if (params is _PdfArray) {
-      return params.items.any(
-        (item) => item is _PdfDict && item.entries.containsKey('Predictor'),
-      );
-    }
-    return params != null;
-  }
-
   void _writeObject(_PdfObject object) {
     switch (object) {
       case _PdfNull():
@@ -896,12 +1136,32 @@ class _Writer {
 // Text extraction (best effort)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// The text layer of one page.
+final class PdfPageText {
+  const PdfPageText({required this.index, required this.text});
+
+  /// Zero-based page index.
+  final int index;
+
+  /// Extracted text, possibly empty for a scanned page.
+  final String text;
+
+  /// Number of non-whitespace characters.
+  int get characterCount => text.replaceAll(RegExp(r'\s'), '').length;
+
+  /// Whether this page carries a usable text layer.
+  bool get hasText => characterCount > 0;
+}
+
 /// Extracts the text layer of a PDF.
 ///
 /// This is a conservative extractor: it reads `Tj`, `TJ`, `'` and `"` operators
 /// from Flate or uncompressed content streams and ignores font CMaps and
 /// custom encodings. Simple, standard-font documents extract well; complex
 /// typography may not. Scanned pages have no text layer — use OCR for those.
+///
+/// On Apple platforms [native_pdf_kit_ocr] uses PDFKit for a higher-fidelity
+/// text layer and falls back to this extractor elsewhere.
 abstract final class PdfTextExtractor {
   /// Returns the text of [page] (zero-based) or the whole document when null.
   static String extract(Uint8List input, {int? page}) {
@@ -921,6 +1181,33 @@ abstract final class PdfTextExtractor {
       return buffer.toString();
     } catch (_) {
       return '';
+    }
+  }
+
+  /// Extracts several pages in one parse.
+  ///
+  /// [pages] are zero-based indexes; when null every page is returned in
+  /// document order. Unsupported input yields an empty list.
+  static List<PdfPageText> extractPages(
+    Uint8List input, {
+    Set<int>? pages,
+  }) {
+    try {
+      final document = _Parser(input).parse();
+      final numbers = document.pageNumbers;
+      final result = <PdfPageText>[];
+      for (var index = 0; index < numbers.length; index++) {
+        if (pages != null && !pages.contains(index)) continue;
+        result.add(
+          PdfPageText(
+            index: index,
+            text: _pageText(document, numbers[index]),
+          ),
+        );
+      }
+      return result;
+    } catch (_) {
+      return const [];
     }
   }
 
@@ -958,17 +1245,8 @@ abstract final class PdfTextExtractor {
     return current;
   }
 
-  static Uint8List? _decodedStream(_PdfStream stream) {
-    final filter = _streamFilter(stream.dict);
-    if (filter == null) return stream.data;
-    if (filter != 'FlateDecode') return null;
-    if (_streamHasPredictor(stream.dict)) return null;
-    try {
-      return Uint8List.fromList(ZLibDecoder().convert(stream.data));
-    } catch (_) {
-      return null;
-    }
-  }
+  static Uint8List? _decodedStream(_PdfStream stream) =>
+      _decodedStreamData(stream);
 }
 
 String? _streamFilter(_PdfDict dictionary) {
@@ -981,17 +1259,188 @@ String? _streamFilter(_PdfDict dictionary) {
   return filter == null ? null : '\u0000unsupported';
 }
 
-bool _streamHasPredictor(_PdfDict dictionary) {
+_PdfDict? _firstDecodeParams(_PdfDict dictionary) {
   final params = dictionary.entries['DecodeParms'];
-  if (params is _PdfDict) {
-    return params.entries.containsKey('Predictor');
-  }
+  if (params is _PdfDict) return params;
   if (params is _PdfArray) {
-    return params.items.any(
-      (item) => item is _PdfDict && item.entries.containsKey('Predictor'),
-    );
+    for (final item in params.items) {
+      if (item is _PdfDict) return item;
+      if (item is _PdfNull) return null;
+    }
   }
-  return params != null;
+  return null;
+}
+
+/// Decodes one Flate or uncompressed stream, applying PNG/TIFF predictors.
+Uint8List? _decodedStreamData(_PdfStream stream) {
+  final filter = _streamFilter(stream.dict);
+  if (filter == null) return stream.data;
+  if (filter != 'FlateDecode') return null;
+  try {
+    final decoded = Uint8List.fromList(ZLibDecoder().convert(stream.data));
+    final params = _firstDecodeParams(stream.dict);
+    if (params == null) return decoded;
+    return _applyPredictor(decoded, params);
+  } catch (_) {
+    return null;
+  }
+}
+
+int? _intValue(_PdfObject? object) {
+  if (object is _PdfNumber) return object.value.toInt();
+  return null;
+}
+
+List<int>? _intList(_PdfObject? object) {
+  if (object is! _PdfArray) return null;
+  final values = <int>[];
+  for (final item in object.items) {
+    if (item is _PdfNumber) {
+      values.add(item.value.toInt());
+    } else {
+      return null;
+    }
+  }
+  return values;
+}
+
+/// Reverses the PNG (10..15) and TIFF (2) predictors used by PDF streams.
+Uint8List? _applyPredictor(Uint8List data, _PdfDict params) {
+  final predictor = _intValue(params.entries['Predictor']) ?? 1;
+  if (predictor <= 1) return data;
+
+  final colors = _intValue(params.entries['Colors']) ?? 1;
+  final bits = _intValue(params.entries['BitsPerComponent']) ?? 8;
+  final columns = _intValue(params.entries['Columns']) ?? 1;
+  if (colors <= 0 || bits <= 0 || columns <= 0) return null;
+
+  final rowBytes = (colors * columns * bits + 7) ~/ 8;
+  if (rowBytes <= 0) return null;
+  final bytesPerPixel = ((colors * bits) + 7) ~/ 8;
+
+  if (predictor == 2) {
+    if (bits != 8 || data.length % rowBytes != 0) return null;
+    final out = Uint8List.fromList(data);
+    for (var row = 0; row < out.length; row += rowBytes) {
+      for (var i = bytesPerPixel; i < rowBytes; i++) {
+        out[row + i] = (out[row + i] + out[row + i - bytesPerPixel]) & 0xFF;
+      }
+    }
+    return out;
+  }
+
+  if (predictor < 10) return null;
+  final stride = rowBytes + 1;
+  final rows = data.length ~/ stride;
+  if (rows == 0) return null;
+
+  final out = Uint8List(rows * rowBytes);
+  final previous = Uint8List(rowBytes);
+  for (var row = 0; row < rows; row++) {
+    final filter = data[row * stride];
+    final source = row * stride + 1;
+    final target = row * rowBytes;
+
+    if (filter == 0) {
+      out.setRange(target, target + rowBytes, data, source);
+    } else if (filter == 1) {
+      for (var i = 0; i < rowBytes; i++) {
+        final left = i >= bytesPerPixel ? out[target + i - bytesPerPixel] : 0;
+        out[target + i] = (data[source + i] + left) & 0xFF;
+      }
+    } else if (filter == 2) {
+      for (var i = 0; i < rowBytes; i++) {
+        out[target + i] = (data[source + i] + previous[i]) & 0xFF;
+      }
+    } else if (filter == 3) {
+      for (var i = 0; i < rowBytes; i++) {
+        final left = i >= bytesPerPixel ? out[target + i - bytesPerPixel] : 0;
+        final up = previous[i];
+        out[target + i] = (data[source + i] + ((left + up) >> 1)) & 0xFF;
+      }
+    } else if (filter == 4) {
+      for (var i = 0; i < rowBytes; i++) {
+        final left = i >= bytesPerPixel ? out[target + i - bytesPerPixel] : 0;
+        final up = previous[i];
+        final upLeft = i >= bytesPerPixel
+            ? previous[i - bytesPerPixel]
+            : 0;
+        out[target + i] = (data[source + i] + _paeth(left, up, upLeft)) & 0xFF;
+      }
+    } else {
+      return null;
+    }
+    previous.setRange(0, rowBytes, out, target);
+  }
+  return out;
+}
+
+int _paeth(int left, int up, int upLeft) {
+  final estimate = left + up - upLeft;
+  final leftDistance = (estimate - left).abs();
+  final upDistance = (estimate - up).abs();
+  final upLeftDistance = (estimate - upLeft).abs();
+  if (leftDistance <= upDistance && leftDistance <= upLeftDistance) {
+    return left;
+  }
+  if (upDistance <= upLeftDistance) return up;
+  return upLeft;
+}
+
+/// Wraps raw 8-bit RGB/gray samples in a minimal PNG for the native encoder.
+Uint8List _encodePng(
+  int width,
+  int height,
+  int components,
+  Uint8List pixels,
+) {
+  final stride = width * components;
+  final raw = BytesBuilder(copy: false);
+  for (var row = 0; row < height; row++) {
+    raw.addByte(0); // PNG filter: none
+    raw.add(Uint8List.sublistView(pixels, row * stride, (row + 1) * stride));
+  }
+  final compressed = ZLibEncoder(level: 9).convert(raw.takeBytes());
+
+  final out = BytesBuilder(copy: false);
+  out.add(const [137, 80, 78, 71, 13, 10, 26, 10]);
+  final header = BytesBuilder(copy: false)
+    ..add(_u32(width))
+    ..add(_u32(height))
+    ..add([8, components == 1 ? 0 : 2, 0, 0, 0]);
+  _pngChunk(out, 'IHDR', header.takeBytes());
+  _pngChunk(out, 'IDAT', Uint8List.fromList(compressed));
+  _pngChunk(out, 'IEND', Uint8List(0));
+  return out.takeBytes();
+}
+
+void _pngChunk(BytesBuilder out, String type, Uint8List data) {
+  final typeBytes = ascii.encode(type);
+  out.add(_u32(data.length));
+  out.add(typeBytes);
+  out.add(data);
+  final crcInput = Uint8List(typeBytes.length + data.length)
+    ..setAll(0, typeBytes)
+    ..setAll(typeBytes.length, data);
+  out.add(_u32(_crc32(crcInput)));
+}
+
+Uint8List _u32(int value) => Uint8List.fromList([
+  (value >> 24) & 0xFF,
+  (value >> 16) & 0xFF,
+  (value >> 8) & 0xFF,
+  value & 0xFF,
+]);
+
+int _crc32(Uint8List data) {
+  var crc = 0xFFFFFFFF;
+  for (final byte in data) {
+    crc ^= byte;
+    for (var bit = 0; bit < 8; bit++) {
+      crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) & 0xFFFFFFFF;
 }
 
 class _ContentTextScanner {
