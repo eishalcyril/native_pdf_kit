@@ -17,3 +17,6 @@ example/macos/Flutter/ephemeral/
 
 # Companion package lives in its own archive
 packages/
+
+# Raw driver output; doc/screenshots holds the README copies
+example/screenshots/

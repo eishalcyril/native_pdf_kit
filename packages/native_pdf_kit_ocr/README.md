@@ -2,7 +2,17 @@
 
 On-device OCR and high-fidelity text extraction for
 [`native_pdf_kit`](https://pub.dev/packages/native_pdf_kit). Published at
-[`native_pdf_kit_ocr` 0.1.0](https://pub.dev/packages/native_pdf_kit_ocr).
+[`native_pdf_kit_ocr` 0.1.1](https://pub.dev/packages/native_pdf_kit_ocr).
+
+## Screenshots
+
+The example picks a real PDF or image, previews it, and reports live progress
+while the native worker runs.
+
+| iOS — Apple Vision | Android — ML Kit |
+| --- | --- |
+| ![iOS OCR](https://raw.githubusercontent.com/eishalcyril/native_pdf_kit/main/doc/screenshots/ios-ocr.png) | ![Android OCR](https://raw.githubusercontent.com/eishalcyril/native_pdf_kit/main/doc/screenshots/android-ocr.png) |
+| ![iOS extracted text](https://raw.githubusercontent.com/eishalcyril/native_pdf_kit/main/doc/screenshots/ios-text.png) | ![Android extracted text](https://raw.githubusercontent.com/eishalcyril/native_pdf_kit/main/doc/screenshots/android-text.png) |
 
 - **Apple (iOS 13+, macOS 10.15+)**: Vision OCR with PDFKit as the text-layer
   fast path. No model download, no network.
@@ -20,8 +30,8 @@ dependency-free and MIT-clean, and apps that do not need OCR pay nothing.
 
 ```yaml
 dependencies:
-  native_pdf_kit: ^0.3.0
-  native_pdf_kit_ocr: ^0.1.0
+  native_pdf_kit: ^0.3.1
+  native_pdf_kit_ocr: ^0.1.1
 ```
 
 ### Android

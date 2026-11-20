@@ -1,5 +1,5 @@
 name: native_pdf_kit
-version: 0.3.0
+version: 0.3.1
 description: >-
   Fast, dependency-free native PDF rendering, imaging, optimization and page
   operations for Flutter. Direct FFI to CoreGraphics/ImageIO on Apple and

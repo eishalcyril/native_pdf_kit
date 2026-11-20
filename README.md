@@ -15,8 +15,18 @@ bundled third-party PDF engine.
 Everything in the core package is our own code calling OS APIs. There is no
 third-party source, so the only copyright notice is ours.
 
-Published: [`native_pdf_kit` 0.3.0](https://pub.dev/packages/native_pdf_kit) ·
-OCR: [`native_pdf_kit_ocr` 0.1.0](https://pub.dev/packages/native_pdf_kit_ocr).
+Published: [`native_pdf_kit` 0.3.1](https://pub.dev/packages/native_pdf_kit) ·
+OCR: [`native_pdf_kit_ocr` 0.1.1](https://pub.dev/packages/native_pdf_kit_ocr).
+
+## Screenshots
+
+The example app picks a **real PDF or image** from the device, previews it,
+runs OCR with live progress, and shows the extracted text.
+
+| iOS — Apple Vision | Android — ML Kit |
+| --- | --- |
+| ![iOS OCR demo](doc/screenshots/ios-ocr.png) | ![Android OCR demo](doc/screenshots/android-ocr.png) |
+| ![iOS extracted text](doc/screenshots/ios-text.png) | ![Android extracted text](doc/screenshots/android-text.png) |
 
 ## Why
 
@@ -38,14 +48,14 @@ every target.
 
 ```yaml
 dependencies:
-  native_pdf_kit: ^0.3.0
+  native_pdf_kit: ^0.3.1
 ```
 
 For OCR add the companion:
 
 ```yaml
 dependencies:
-  native_pdf_kit_ocr: ^0.1.0
+  native_pdf_kit_ocr: ^0.1.1
 ```
 
 ## Usage

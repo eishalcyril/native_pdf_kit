@@ -1,3 +1,11 @@
+## 0.3.1
+
+- Example app: pick a real PDF or image from device storage (`file_selector`),
+  preview pages, and run OCR with live progress and extracted text.
+- Add a screenshot integration driver for iOS and Android.
+- README screenshots and a file-picking walkthrough.
+- No core API changes.
+
 ## 0.3.0
 
 - Optimizer: PDF 1.5 xref streams, hybrid files, `/ObjStm` object streams,

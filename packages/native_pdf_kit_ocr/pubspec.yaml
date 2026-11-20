@@ -1,5 +1,5 @@
 name: native_pdf_kit_ocr
-version: 0.1.0
+version: 0.1.1
 description: >-
   On-device OCR and high-fidelity text extraction for native_pdf_kit. Apple
   Vision and PDFKit on iOS/macOS, ML Kit or LiteRT/PP-OCRv5 on Android, with

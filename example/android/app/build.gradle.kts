@@ -37,6 +37,13 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    lint {
+        // AGP 9's lint crashes while parsing JavaDoc in file_selector_android.
+        // The example is not a published artifact; normal analysis still runs.
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
 
 kotlin {

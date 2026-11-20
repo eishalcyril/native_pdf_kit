@@ -1,3 +1,9 @@
+## 0.1.1
+
+- README screenshots for iOS (Vision) and Android (ML Kit).
+- Example picks a real PDF or image and previews it before OCR.
+- No API changes.
+
 ## 0.1.0
 
 First release.
