@@ -118,9 +118,7 @@ class _OcrDemoPageState extends State<OcrDemoPage> {
 
   Future<void> _pickPdf() async {
     try {
-      final selected = await openFile(
-        acceptedTypeGroups: const [_pdfType],
-      );
+      final selected = await openFile(acceptedTypeGroups: const [_pdfType]);
       if (selected == null) return;
       final target = File(
         '${Directory.systemTemp.path}/picked_'
@@ -135,9 +133,7 @@ class _OcrDemoPageState extends State<OcrDemoPage> {
 
   Future<void> _pickImage() async {
     try {
-      final selected = await openFile(
-        acceptedTypeGroups: const [_imageType],
-      );
+      final selected = await openFile(acceptedTypeGroups: const [_imageType]);
       if (selected == null) return;
       final bytes = await selected.readAsBytes();
       if (bytes.isEmpty) {
@@ -409,7 +405,9 @@ class _OcrDemoPageState extends State<OcrDemoPage> {
                         key: const Key('run-ocr'),
                         onPressed: _running ? null : _run,
                         icon: const Icon(Icons.document_scanner_outlined),
-                        label: Text(_image == null ? 'Extract document' : 'OCR image'),
+                        label: Text(
+                          _image == null ? 'Extract document' : 'OCR image',
+                        ),
                       ),
                       const SizedBox(width: 8),
                       if (_running)
