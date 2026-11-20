@@ -117,6 +117,19 @@ void main() {
     );
   });
 
+  test('blank pages are empty pages, not errors', () async {
+    final blank = File('${directory.path}/blank.pdf')
+      ..writeAsBytesSync(_buildBlankPdf());
+    final result = await NativePdfOcr.extractDocument(
+      NativePdfDocument.open(blank.path),
+      options: const PdfOcrOptions(mode: PdfOcrMode.textLayerOnly),
+    );
+
+    expect(result.pages, hasLength(1));
+    expect(result.pages.single.text, isEmpty);
+    expect(result.errors, isEmpty);
+  });
+
   test('cancelling the subscription stops the job', () async {
     final source = File('${directory.path}/many.pdf')
       ..writeAsBytesSync(_buildPdf(pages: 12));
@@ -149,6 +162,35 @@ void main() {
     await completer.future.timeout(const Duration(seconds: 20));
     expect(pages, 1);
   });
+}
+
+Uint8List _buildBlankPdf() {
+  const content = 'q Q';
+  final objects = <String>[
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] '
+        '/Contents 4 0 R >>',
+    '<< /Length ${content.length} >>\nstream\n$content\nendstream',
+  ];
+
+  final buffer = StringBuffer('%PDF-1.4\n');
+  final offsets = <int>[0];
+  for (var i = 0; i < objects.length; i++) {
+    offsets.add(buffer.length);
+    buffer.write('${i + 1} 0 obj\n${objects[i]}\nendobj\n');
+  }
+  final xref = buffer.length;
+  buffer.write('xref\n0 ${objects.length + 1}\n');
+  buffer.write('0000000000 65535 f \n');
+  for (var i = 1; i <= objects.length; i++) {
+    buffer.write('${offsets[i].toString().padLeft(10, '0')} 00000 n \n');
+  }
+  buffer.write(
+    'trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n'
+    'startxref\n$xref\n%%EOF\n',
+  );
+  return Uint8List.fromList(ascii.encode(buffer.toString()));
 }
 
 Uint8List _buildPdf({required int pages}) {

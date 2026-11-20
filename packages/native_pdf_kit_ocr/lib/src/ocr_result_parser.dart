@@ -58,10 +58,16 @@ PdfOcrPage parseOcrPageJson(
         ? lines.map((line) => line.text).join('\n')
         : text;
     if (resolvedText.isEmpty) {
-      return _failedPage(
-        index,
-        'the native engine found no text',
-        duration,
+      // A blank page is a valid page, not a failed job.
+      return PdfOcrPage(
+        index: index,
+        text: '',
+        lines: lines,
+        source: source,
+        engine: engine,
+        width: _asDouble(decoded['width']) ?? 0,
+        height: _asDouble(decoded['height']) ?? 0,
+        duration: duration,
       );
     }
     return PdfOcrPage(

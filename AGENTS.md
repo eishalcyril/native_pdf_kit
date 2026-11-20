@@ -31,7 +31,7 @@ permissive MIT license owned by Eishal Cyril.
     the temporary override (~35 KB).
 - Tests:
   - core: **16/16** (`flutter test`, after `./tool/build_native_test_lib.sh`),
-  - OCR macOS: **6/6** (PDFKit text layer, Vision OCR, OCR-only, text-only,
+  - OCR macOS: **7/7** (PDFKit text layer, Vision OCR, OCR-only, text-only,
     capabilities, cancellation),
   - Android device: **3/3** on the Pixel 8 Pro API 36 emulator (ML Kit document,
     ML Kit image, LiteRT PP-OCRv5 image).
@@ -136,7 +136,7 @@ packages/native_pdf_kit_ocr/
   lib/src/android_ocr.dart     JNI bridge (low-level package:jni)
   darwin/.../native_pdf_ocr.m  PDFKit text layer, CoreGraphics render, Vision
   android/src/main/java/...    OcrBridge, MlKitEngine, LiteRtEngine
-  test/                        macOS OCR tests (6)
+  test/                        macOS OCR tests (7)
 ```
 
 - **Apple core**: direct FFI (`DynamicLibrary.process`) to a narrow C surface

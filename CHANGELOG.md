@@ -12,7 +12,7 @@
 - Example app: live OCR demo and Android/iOS device integration tests.
 - Android release build verified with ML Kit and LiteRT 2.3.0; iOS simulator
   and device builds verified with Vision/PDFKit.
-- Tests: 16 core tests plus 6 macOS OCR tests and 3 Android device tests.
+- Tests: 16 core tests plus 7 macOS OCR tests and 3 Android device tests.
 
 ## 0.2.0
 
