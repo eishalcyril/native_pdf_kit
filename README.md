@@ -15,6 +15,9 @@ bundled third-party PDF engine.
 Everything in the core package is our own code calling OS APIs. There is no
 third-party source, so the only copyright notice is ours.
 
+Published: [`native_pdf_kit` 0.3.0](https://pub.dev/packages/native_pdf_kit) ·
+OCR: [`native_pdf_kit_ocr` 0.1.0](https://pub.dev/packages/native_pdf_kit_ocr).
+
 ## Why
 
 Platform channels serialize every call and force async plumbing. Rendering a

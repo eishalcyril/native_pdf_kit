@@ -24,11 +24,12 @@ permissive MIT license owned by Eishal Cyril.
 ### Where we stopped
 
 - Core version: **0.3.0**. OCR companion: **0.1.0**.
-- **Not published to pub.dev** — no credentials on the development machine.
-  - Core `dart pub publish --dry-run`: 0 warnings after committing (~259 KB).
-  - OCR dry-run via `packages/native_pdf_kit_ocr/tool/publish.sh --dry-run`
-    (with `NATIVE_PDF_KIT_PATH` for local validation): 0 warnings, 1 hint for
-    the temporary override (~35 KB).
+- **Published on pub.dev on 2026-11-20**:
+  - <https://pub.dev/packages/native_pdf_kit> (0.3.0, 0 warnings, 314 KB),
+  - <https://pub.dev/packages/native_pdf_kit_ocr> (0.1.0, 0 warnings, 35 KB).
+  - `dart pub login` is configured as `eishalcyril2@gmail.com` (Eishal Cyril).
+  - A clean temp project resolves both hosted versions; the OCR package
+    resolves `native_pdf_kit ^0.3.0` transitively.
 - Tests:
   - core: **16/16** (`flutter test`, after `./tool/build_native_test_lib.sh`),
   - OCR macOS: **7/7** (PDFKit text layer, Vision OCR, OCR-only, text-only, blank
@@ -56,16 +57,13 @@ permissive MIT license owned by Eishal Cyril.
 
 ### Immediate next actions, in order
 
-1. **Publish `native_pdf_kit` 0.3.0** (`dart pub login`, dry run, publish), then
-   **publish `native_pdf_kit_ocr` 0.1.0** with
-   `packages/native_pdf_kit_ocr/tool/publish.sh` (it stages a clean copy; the
-   core version must be live first). Then switch the office app from the git
-   dependency to `native_pdf_kit: ^0.3.0`.
+1. **Switch the office app** from the git dependency to
+   `native_pdf_kit: ^0.3.0` (and add `native_pdf_kit_ocr: ^0.1.0` if OCR is
+   wanted), then re-run `flutter pub get` and build.
 2. **Office app OCR integration**, if product wants it: add
-   `native_pdf_kit_ocr` (path or git `path: packages/native_pdf_kit_ocr`) and
-   use `NativePdfOcr.recognizeDocument` for scanned GRNs. Decide whether the
-   bundled ML Kit model is acceptable; otherwise add the unbundled artifact or
-   move to LiteRT.
+   `native_pdf_kit_ocr: ^0.1.0` and use `NativePdfOcr.recognizeDocument` for
+   scanned GRNs. Decide whether the bundled ML Kit model is acceptable;
+   otherwise add the unbundled artifact or move to LiteRT.
 3. **Optimizer coverage still missing**: JPX/CCITT/JBIG2, CMYK, soft masks,
    palettes and encrypted PDFs are left unchanged. Implement only with real
    samples and a visual comparison; do not break the "never corrupt" rule.
@@ -196,7 +194,8 @@ packages/native_pdf_kit_ocr/
    - optional PDF page-range UI helpers.
 3. **Signing and encryption** — do not hand-roll.
 4. **Editing** — annotations, form fields, thumbnail cache.
-5. **Publishing** — core 0.3.0, then OCR 0.1.0, then app dependency bump.
+5. **Post-publish** — watch the pub.dev analysis/score, and bump the app
+   dependency (core 0.3.0 / OCR 0.1.0).
 
 ## Commands
 

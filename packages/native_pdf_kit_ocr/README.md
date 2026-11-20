@@ -1,7 +1,8 @@
 # native_pdf_kit_ocr
 
 On-device OCR and high-fidelity text extraction for
-[`native_pdf_kit`](https://github.com/eishalcyril/native_pdf_kit).
+[`native_pdf_kit`](https://pub.dev/packages/native_pdf_kit). Published at
+[`native_pdf_kit_ocr` 0.1.0](https://pub.dev/packages/native_pdf_kit_ocr).
 
 - **Apple (iOS 13+, macOS 10.15+)**: Vision OCR with PDFKit as the text-layer
   fast path. No model download, no network.
