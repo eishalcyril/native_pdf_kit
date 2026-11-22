@@ -1,3 +1,10 @@
+## 0.1.2
+
+- Add the package example app (`example/`) for pub.dev's documentation score.
+- Document the public result types and format the source.
+- Shorten the pubspec description to satisfy pub.dev's length limit.
+- No API changes.
+
 ## 0.1.1
 
 - README screenshots for iOS (Vision) and Android (ML Kit).

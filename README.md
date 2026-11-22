@@ -15,8 +15,8 @@ bundled third-party PDF engine.
 Everything in the core package is our own code calling OS APIs. There is no
 third-party source, so the only copyright notice is ours.
 
-Published: [`native_pdf_kit` 0.3.1](https://pub.dev/packages/native_pdf_kit) ·
-OCR: [`native_pdf_kit_ocr` 0.1.1](https://pub.dev/packages/native_pdf_kit_ocr).
+Published: [`native_pdf_kit` 0.3.2](https://pub.dev/packages/native_pdf_kit) ·
+OCR: [`native_pdf_kit_ocr` 0.1.2](https://pub.dev/packages/native_pdf_kit_ocr).
 
 ## Screenshots
 
@@ -48,14 +48,14 @@ every target.
 
 ```yaml
 dependencies:
-  native_pdf_kit: ^0.3.1
+  native_pdf_kit: ^0.3.2
 ```
 
 For OCR add the companion:
 
 ```yaml
 dependencies:
-  native_pdf_kit_ocr: ^0.1.1
+  native_pdf_kit_ocr: ^0.1.2
 ```
 
 ## Usage

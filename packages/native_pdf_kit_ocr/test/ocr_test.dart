@@ -24,10 +24,7 @@ void main() {
   test('reports capabilities and languages', () {
     expect(NativePdfOcr.isSupported, isTrue);
     expect(PdfOcrCapabilities.ocr, isTrue);
-    expect(
-      NativePdfOcr.availableEngines,
-      contains(PdfOcrEngine.appleVision),
-    );
+    expect(NativePdfOcr.availableEngines, contains(PdfOcrEngine.appleVision));
     final languages = NativePdfOcr.supportedLanguages();
     expect(languages, isNotEmpty);
     expect(languages.any((value) => value.startsWith('en')), isTrue);
@@ -52,10 +49,7 @@ void main() {
     final progress = events.whereType<PdfOcrProgress>().toList();
     expect(progress, isNotEmpty);
     expect(progress.last.overallProgress, closeTo(1, 0.0001));
-    expect(
-      progress.every((event) => event.overallProgress <= 1.0001),
-      isTrue,
-    );
+    expect(progress.every((event) => event.overallProgress <= 1.0001), isTrue);
   });
 
   test('OCRs a rendered page with Vision', () async {
@@ -111,10 +105,7 @@ void main() {
 
     expect(result.pages, hasLength(2));
     expect(result.text, contains('Native PDF page 2'));
-    expect(
-      result.engines,
-      everyElement('pdfkit'),
-    );
+    expect(result.engines, everyElement('pdfkit'));
   });
 
   test('blank pages are empty pages, not errors', () async {
@@ -138,26 +129,27 @@ void main() {
     var pages = 0;
     late StreamSubscription<PdfOcrEvent> subscription;
 
-    subscription = NativePdfOcr.recognizeDocument(
-      document,
-      options: const PdfOcrOptions(
-        mode: PdfOcrMode.ocrOnly,
-        renderWidth: 1600,
-      ),
-    ).listen(
-      (event) {
-        if (event is PdfOcrPageEvent) {
-          pages++;
-          if (pages == 1) {
-            subscription.cancel().whenComplete(completer.complete);
-          }
-        }
-      },
-      onError: completer.completeError,
-      onDone: () {
-        if (!completer.isCompleted) completer.complete();
-      },
-    );
+    subscription =
+        NativePdfOcr.recognizeDocument(
+          document,
+          options: const PdfOcrOptions(
+            mode: PdfOcrMode.ocrOnly,
+            renderWidth: 1600,
+          ),
+        ).listen(
+          (event) {
+            if (event is PdfOcrPageEvent) {
+              pages++;
+              if (pages == 1) {
+                subscription.cancel().whenComplete(completer.complete);
+              }
+            }
+          },
+          onError: completer.completeError,
+          onDone: () {
+            if (!completer.isCompleted) completer.complete();
+          },
+        );
 
     await completer.future.timeout(const Duration(seconds: 20));
     expect(pages, 1);

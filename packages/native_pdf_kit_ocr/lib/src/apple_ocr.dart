@@ -30,11 +30,7 @@ final class AppleOcrPlatform implements OcrPlatform {
     final nativePath = path.toNativeUtf8();
     final nativeOptions = optionsJson.toNativeUtf8();
     try {
-      final handle = _bindings.pageStart(
-        nativePath,
-        pageIndex,
-        nativeOptions,
-      );
+      final handle = _bindings.pageStart(nativePath, pageIndex, nativeOptions);
       if (handle == nullptr) {
         throw const PdfOcrException('could not start the Vision job');
       }
@@ -58,11 +54,7 @@ final class AppleOcrPlatform implements OcrPlatform {
     final nativeOptions = optionsJson.toNativeUtf8();
     try {
       source.asTypedList(bytes.length).setAll(0, bytes);
-      final handle = _bindings.imageStart(
-        source,
-        bytes.length,
-        nativeOptions,
-      );
+      final handle = _bindings.imageStart(source, bytes.length, nativeOptions);
       if (handle == nullptr) {
         throw const PdfOcrException('could not start the Vision job');
       }
@@ -210,10 +202,9 @@ final class AppleOcrBindings {
             Void Function(Pointer<Utf8>),
             void Function(Pointer<Utf8>)
           >('npdfocr_string_free'),
-      _available = library
-          .lookupFunction<Int32 Function(), int Function()>(
-            'npdfocr_available',
-          );
+      _available = library.lookupFunction<Int32 Function(), int Function()>(
+        'npdfocr_available',
+      );
 
   static AppleOcrBindings? _instance;
 
@@ -245,8 +236,11 @@ final class AppleOcrBindings {
     Pointer<Utf8> options,
   ) => _imageStart(bytes, length, options);
 
-  int poll(Pointer<Void> handle, Pointer<Double> progress, Pointer<Int32> stage) =>
-      _poll(handle, progress, stage);
+  int poll(
+    Pointer<Void> handle,
+    Pointer<Double> progress,
+    Pointer<Int32> stage,
+  ) => _poll(handle, progress, stage);
 
   Pointer<Utf8> result(Pointer<Void> handle) => _result(handle);
 

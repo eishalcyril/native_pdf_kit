@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'native_pdf_kit'
-  s.version          = '0.3.1'
+  s.version          = '0.3.2'
   s.summary          = 'Native PDF rendering and image encoding for Flutter.'
   s.description      = <<-DESC
 Direct FFI bindings to CoreGraphics and ImageIO for PDF page rendering and

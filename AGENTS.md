@@ -23,15 +23,16 @@ permissive MIT license owned by Eishal Cyril.
 
 ### Where we stopped
 
-- Core version: **0.3.1**. OCR companion: **0.1.1**.
+- Core version: **0.3.2**. OCR companion: **0.1.2**.
 - **Published on pub.dev on 2026-11-20**:
-  - <https://pub.dev/packages/native_pdf_kit> (0.3.1, 0 warnings, ~1 MB
+  - <https://pub.dev/packages/native_pdf_kit> (0.3.2, 0 warnings, ~1 MB
     with README screenshots),
-  - <https://pub.dev/packages/native_pdf_kit_ocr> (0.1.1, 0 warnings, 35 KB).
-  - Earlier same-day releases: core 0.3.0, OCR 0.1.0.
+  - <https://pub.dev/packages/native_pdf_kit_ocr> (0.1.2, 0 warnings, 35 KB).
+  - Earlier same-day releases: core 0.3.0/0.3.1, OCR 0.1.0/0.1.1.
   - `dart pub login` is configured as `eishalcyril2@gmail.com` (Eishal Cyril).
   - A clean temp project resolves both hosted versions; the OCR package
     resolves `native_pdf_kit ^0.3.0` transitively.
+  - `pana` reports **160/160** for both packages (pub.dev max).
 - Tests:
   - core: **16/16** (`flutter test`, after `./tool/build_native_test_lib.sh`),
   - OCR macOS: **7/7** (PDFKit text layer, Vision OCR, OCR-only, text-only, blank

@@ -34,9 +34,7 @@ final class AndroidOcrPlatform implements OcrPlatform {
         'com/eishal/native_pdf_kit_ocr/OcrBridge',
       );
     } catch (error) {
-      throw PdfOcrException(
-        'the Android OCR bridge is not available: $error',
-      );
+      throw PdfOcrException('the Android OCR bridge is not available: $error');
     }
   }
 
@@ -87,8 +85,7 @@ final class AndroidOcrPlatform implements OcrPlatform {
   List<String> supportedLanguages({
     PdfOcrRecognitionLevel level = PdfOcrRecognitionLevel.accurate,
   }) {
-    final options =
-        '{"textLevel":"${level.nativeName}"}'.toJString();
+    final options = '{"textLevel":"${level.nativeName}"}'.toJString();
     try {
       final json = _call(
         'supportedLanguages',

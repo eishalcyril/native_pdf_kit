@@ -1188,10 +1188,7 @@ abstract final class PdfTextExtractor {
   ///
   /// [pages] are zero-based indexes; when null every page is returned in
   /// document order. Unsupported input yields an empty list.
-  static List<PdfPageText> extractPages(
-    Uint8List input, {
-    Set<int>? pages,
-  }) {
+  static List<PdfPageText> extractPages(Uint8List input, {Set<int>? pages}) {
     try {
       final document = _Parser(input).parse();
       final numbers = document.pageNumbers;
@@ -1199,10 +1196,7 @@ abstract final class PdfTextExtractor {
       for (var index = 0; index < numbers.length; index++) {
         if (pages != null && !pages.contains(index)) continue;
         result.add(
-          PdfPageText(
-            index: index,
-            text: _pageText(document, numbers[index]),
-          ),
+          PdfPageText(index: index, text: _pageText(document, numbers[index])),
         );
       }
       return result;
@@ -1362,9 +1356,7 @@ Uint8List? _applyPredictor(Uint8List data, _PdfDict params) {
       for (var i = 0; i < rowBytes; i++) {
         final left = i >= bytesPerPixel ? out[target + i - bytesPerPixel] : 0;
         final up = previous[i];
-        final upLeft = i >= bytesPerPixel
-            ? previous[i - bytesPerPixel]
-            : 0;
+        final upLeft = i >= bytesPerPixel ? previous[i - bytesPerPixel] : 0;
         out[target + i] = (data[source + i] + _paeth(left, up, upLeft)) & 0xFF;
       }
     } else {
@@ -1388,12 +1380,7 @@ int _paeth(int left, int up, int upLeft) {
 }
 
 /// Wraps raw 8-bit RGB/gray samples in a minimal PNG for the native encoder.
-Uint8List _encodePng(
-  int width,
-  int height,
-  int components,
-  Uint8List pixels,
-) {
+Uint8List _encodePng(int width, int height, int components, Uint8List pixels) {
   final stride = width * components;
   final raw = BytesBuilder(copy: false);
   for (var row = 0; row < height; row++) {

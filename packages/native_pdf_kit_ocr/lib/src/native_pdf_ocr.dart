@@ -174,7 +174,7 @@ abstract final class NativePdfOcr {
           outcome = event.outcome;
         }
       }
-      if (outcome == null) return;  // The subscription was cancelled.
+      if (outcome == null) return; // The subscription was cancelled.
       completed++;
 
       if (outcome.done && outcome.resultJson != null) {
@@ -352,9 +352,7 @@ abstract final class NativePdfOcr {
       return AppleOcrPlatform.instance;
     }
     if (Platform.isAndroid) return AndroidOcrPlatform.instance;
-    throw const PdfOcrException(
-      'OCR is supported on iOS, macOS and Android.',
-    );
+    throw const PdfOcrException('OCR is supported on iOS, macOS and Android.');
   }
 
   static PdfOcrEngine _resolveEngine(
@@ -380,15 +378,8 @@ abstract final class NativePdfOcr {
     PdfOcrOptions options,
     PdfOcrEngine engine,
   ) {
-    final json = jsonEncode({
-      ...options.toJson(),
-      'engine': engine.nativeName,
-    });
-    return platform.startPage(
-      path: path,
-      pageIndex: index,
-      optionsJson: json,
-    );
+    final json = jsonEncode({...options.toJson(), 'engine': engine.nativeName});
+    return platform.startPage(path: path, pageIndex: index, optionsJson: json);
   }
 
   static Future<Map<int, PdfPageText>> _readAndroidTextLayers(

@@ -81,7 +81,11 @@ PdfOcrPage parseOcrPageJson(
       duration: duration,
     );
   } catch (error) {
-    return _failedPage(index, 'could not read the native result: $error', duration);
+    return _failedPage(
+      index,
+      'could not read the native result: $error',
+      duration,
+    );
   }
 }
 
@@ -103,9 +107,7 @@ PdfOcrPage dartTextPage(
             PdfOcrLine(
               text: trimmed,
               confidence: 1,
-              box: includeLineBoxes
-                  ? const PdfOcrBox(0, 0, 1, 1)
-                  : null,
+              box: includeLineBoxes ? const PdfOcrBox(0, 0, 1, 1) : null,
             ),
           ],
     source: PdfOcrPageSource.textLayer,

@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'native_pdf_kit_ocr'
-  s.version          = '0.1.1'
+  s.version          = '0.1.2'
   s.summary          = 'On-device OCR and text extraction for native_pdf_kit.'
   s.description      = <<-DESC
 Apple Vision OCR and PDFKit text extraction behind a narrow C surface, with

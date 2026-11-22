@@ -71,6 +71,7 @@ enum PdfOcrScript {
 /// The models are not bundled with this package. Point these at files the app
 /// has downloaded, or fetch them with `tool/fetch_litert_ocr_models.sh`.
 final class PdfLiteRtModels {
+  /// Creates the model paths for the LiteRT PP-OCRv5 engine.
   const PdfLiteRtModels({
     required this.detectorPath,
     required this.recognizerPath,
@@ -90,6 +91,7 @@ final class PdfLiteRtModels {
   /// CPU threads used by LiteRT.
   final int threads;
 
+  /// Serializes the model paths for the native bridge.
   Map<String, Object?> toJson() => {
     'detModel': detectorPath,
     'recModel': recognizerPath,
@@ -103,14 +105,25 @@ enum PdfOcrPageSource { textLayer, ocr }
 
 /// A normalized box in page space, origin top-left, values in 0..1.
 final class PdfOcrBox {
+  /// Creates a box from normalized page coordinates.
   const PdfOcrBox(this.left, this.top, this.width, this.height);
 
+  /// Distance from the left page edge, 0..1.
   final double left;
+
+  /// Distance from the top page edge, 0..1.
   final double top;
+
+  /// Box width, 0..1.
   final double width;
+
+  /// Box height, 0..1.
   final double height;
 
+  /// Right page edge (`left + width`).
   double get right => left + width;
+
+  /// Bottom page edge (`top + height`).
   double get bottom => top + height;
 
   @override
@@ -121,12 +134,10 @@ final class PdfOcrBox {
 
 /// One recognized line.
 final class PdfOcrLine {
-  const PdfOcrLine({
-    required this.text,
-    required this.confidence,
-    this.box,
-  });
+  /// Creates one recognized line.
+  const PdfOcrLine({required this.text, required this.confidence, this.box});
 
+  /// The recognized text.
   final String text;
 
   /// 0..1. Text-layer lines report 1.0.
@@ -141,6 +152,7 @@ final class PdfOcrLine {
 
 /// One page of text.
 final class PdfOcrPage {
+  /// Creates a page result.
   const PdfOcrPage({
     required this.index,
     required this.text,
@@ -156,8 +168,13 @@ final class PdfOcrPage {
   /// Zero-based page index.
   final int index;
 
+  /// The page text.
   final String text;
+
+  /// Recognized lines, in engine order.
   final List<PdfOcrLine> lines;
+
+  /// Whether the text came from the PDF text layer or OCR.
   final PdfOcrPageSource source;
 
   /// `apple-vision`, `pdfkit`, `mlkit`, `litert` or `dart-text`.
@@ -170,23 +187,25 @@ final class PdfOcrPage {
   /// Pixel height of the image the text was measured on.
   final double height;
 
+  /// Time spent on this page.
   final Duration duration;
 
   /// Non-null when this page failed and [text] is empty.
   final String? error;
 
+  /// Whether the page has any non-whitespace text.
   bool get hasText => text.trim().isNotEmpty;
 
   /// Number of non-whitespace characters.
   int get characterCount => text.replaceAll(RegExp(r'\s'), '').length;
 
   @override
-  String toString() =>
-      'PdfOcrPage($index, $engine, $characterCount chars)';
+  String toString() => 'PdfOcrPage($index, $engine, $characterCount chars)';
 }
 
 /// The result of a document or image job.
 final class PdfOcrDocument {
+  /// Creates a document result.
   const PdfOcrDocument({
     required this.pages,
     required this.text,
@@ -195,6 +214,7 @@ final class PdfOcrDocument {
     required this.errors,
   });
 
+  /// Page results in document order.
   final List<PdfOcrPage> pages;
 
   /// All page text, separated by a blank line.
@@ -203,13 +223,16 @@ final class PdfOcrDocument {
   /// Distinct engine names used.
   final Set<String> engines;
 
+  /// Total job time.
   final Duration duration;
 
   /// Page indexes that failed, with their messages.
   final Map<int, String> errors;
 
+  /// Whether the document has any non-whitespace text.
   bool get hasText => text.trim().isNotEmpty;
 
+  /// Number of non-whitespace characters across all pages.
   int get characterCount => text.replaceAll(RegExp(r'\s'), '').length;
 
   @override
@@ -220,6 +243,7 @@ final class PdfOcrDocument {
 
 /// Options shared by the document and image APIs.
 final class PdfOcrOptions {
+  /// Creates OCR options. Defaults use the platform engine and auto mode.
   const PdfOcrOptions({
     this.mode = PdfOcrMode.auto,
     this.engine = PdfOcrEngine.auto,
@@ -359,6 +383,7 @@ final class PdfOcrOptions {
 
 /// A progress update while a job runs.
 final class PdfOcrProgress extends PdfOcrEvent {
+  /// Creates a progress event.
   const PdfOcrProgress({
     required this.pageIndex,
     required this.pageCount,
@@ -408,27 +433,34 @@ enum PdfOcrStage {
 
 /// One page finished.
 final class PdfOcrPageEvent extends PdfOcrEvent {
+  /// Creates a page event.
   const PdfOcrPageEvent(this.page);
 
+  /// The page that just finished.
   final PdfOcrPage page;
 }
 
 /// The job finished.
 final class PdfOcrDoneEvent extends PdfOcrEvent {
+  /// Creates the terminal event.
   const PdfOcrDoneEvent(this.document);
 
+  /// The complete result.
   final PdfOcrDocument document;
 }
 
 /// Base event type.
 sealed class PdfOcrEvent {
+  /// Base event.
   const PdfOcrEvent();
 }
 
 /// Thrown when the native OCR backend cannot run.
 final class PdfOcrException implements Exception {
+  /// Creates an exception with a human-readable [message].
   const PdfOcrException(this.message);
 
+  /// What went wrong.
   final String message;
 
   @override

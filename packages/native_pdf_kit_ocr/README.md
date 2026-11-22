@@ -2,7 +2,7 @@
 
 On-device OCR and high-fidelity text extraction for
 [`native_pdf_kit`](https://pub.dev/packages/native_pdf_kit). Published at
-[`native_pdf_kit_ocr` 0.1.1](https://pub.dev/packages/native_pdf_kit_ocr).
+[`native_pdf_kit_ocr` 0.1.2](https://pub.dev/packages/native_pdf_kit_ocr).
 
 ## Screenshots
 
@@ -30,8 +30,8 @@ dependency-free and MIT-clean, and apps that do not need OCR pay nothing.
 
 ```yaml
 dependencies:
-  native_pdf_kit: ^0.3.1
-  native_pdf_kit_ocr: ^0.1.1
+  native_pdf_kit: ^0.3.2
+  native_pdf_kit_ocr: ^0.1.2
 ```
 
 ### Android

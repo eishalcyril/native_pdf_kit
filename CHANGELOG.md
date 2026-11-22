@@ -1,3 +1,9 @@
+## 0.3.2
+
+- Shorten the pubspec description to satisfy pub.dev's length limit.
+- Format the optimizer source (pub.dev static-analysis score).
+- No API changes.
+
 ## 0.3.1
 
 - Example app: pick a real PDF or image from device storage (`file_selector`),
