@@ -24,7 +24,8 @@ permissive MIT license owned by Eishal Cyril.
 ### Where we stopped
 
 - Core version: **0.3.2**. OCR companion: **0.1.2**.
-- **Published on pub.dev on 2026-11-20**:
+- **Published on pub.dev** (0.3.0/0.1.0 on 2026-11-20; 0.3.2/0.1.2 on
+  2026-11-22):
   - <https://pub.dev/packages/native_pdf_kit> (0.3.2, 0 warnings, ~1 MB
     with README screenshots),
   - <https://pub.dev/packages/native_pdf_kit_ocr> (0.1.2, 0 warnings, 35 KB).
