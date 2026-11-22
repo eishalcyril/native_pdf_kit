@@ -33,7 +33,8 @@ permissive MIT license owned by Eishal Cyril.
   - `dart pub login` is configured as `eishalcyril2@gmail.com` (Eishal Cyril).
   - A clean temp project resolves both hosted versions; the OCR package
     resolves `native_pdf_kit ^0.3.0` transitively.
-  - `pana` reports **160/160** for both packages (pub.dev max).
+  - `pana` reports **160/160** for both packages (pub.dev max), and the
+    live pub.dev package pages show **160 points** for both.
 - Tests:
   - core: **16/16** (`flutter test`, after `./tool/build_native_test_lib.sh`),
   - OCR macOS: **7/7** (PDFKit text layer, Vision OCR, OCR-only, text-only, blank
